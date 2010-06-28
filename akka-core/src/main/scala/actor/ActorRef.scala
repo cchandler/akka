@@ -347,7 +347,7 @@ trait ActorRef extends TransactionManagement {
   /**
    * Is the actor able to handle the message passed in as arguments?
    */
-  def isDefinedAt(message: Any): Boolean = actor.base.isDefinedAt(message)
+  def isDefinedAt(message: Any): Boolean = actor.base(Some(this)).isDefinedAt(message)
   
   /**
    * Is the actor is serializable?
@@ -766,7 +766,7 @@ sealed class LocalActorRef private[akka](
       _uuid = __uuid
       id = __id
       homeAddress = (__hostname, __port)
-      isTransactor = __isTransactor
+      isTransactor = __isTransactor || actorInstance.isInstanceOf[Transactor]
       timeout = __timeout
       lifeCycle = __lifeCycle
       _supervisor = __supervisor
@@ -996,7 +996,7 @@ sealed class LocalActorRef private[akka](
       _transactionFactory = None
       _isRunning = false
       _isShutDown = true
-      actor.shutdown
+      actor.shutdown(Some(this))
       ActorRegistry.unregister(this)
       remoteAddress.foreach(address => RemoteClient.unregister(
         address.getHostName, address.getPort, uuid))
@@ -1149,7 +1149,7 @@ sealed class LocalActorRef private[akka](
 
   private[this] def newActor: Actor = {
     isInInitialization = true
-    Actor.actorRefInCreation.value = Some(this)
+    //Actor.actorRefInCreation.value = Some(this)
     val actor = actorFactory match {
       case Left(Some(clazz)) =>
         try {
@@ -1169,7 +1169,8 @@ sealed class LocalActorRef private[akka](
     }
     if (actor eq null) throw new ActorInitializationException(
       "Actor instance passed to ActorRef can not be 'null'")
-    isInInitialization = false
+    
+   isInInitialization = false
     actor
   }
 
@@ -1259,11 +1260,11 @@ sealed class LocalActorRef private[akka](
       if (isTransactor) {
         val txFactory = _transactionFactory.getOrElse(DefaultGlobalTransactionFactory)
         atomic(txFactory) {
-          actor.base(message)
+          actor.base(Some(this))(message)
           setTransactionSet(txSet) // restore transaction set to allow atomic block to do commit
         }
       } else {
-        actor.base(message)
+        actor.base(Some(this))(message)
         setTransactionSet(txSet) // restore transaction set to allow atomic block to do commit
       }
     } catch {
@@ -1312,6 +1313,7 @@ sealed class LocalActorRef private[akka](
 
   protected[akka] def restart(reason: Throwable): Unit = {
     //_isBeingRestarted = true
+    implicit val self : Actor.Self = Some(this)
     Actor.log.info("Restarting actor [%s] configured as PERMANENT.", id)
     restartLinkedActors(reason)
     val failedActor = actorInstance.get
@@ -1400,7 +1402,7 @@ sealed class LocalActorRef private[akka](
   }
 
   private def initializeActorInstance = {
-    actor.init // run actor init and initTransactionalState callbacks
+    actor.init(Some(this)) // run actor init and initTransactionalState callbacks
     actor.initTransactionalState
     Actor.log.debug("[%s] has started", toString)
     ActorRegistry.register(this)

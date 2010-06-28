@@ -143,10 +143,10 @@ class ExecutorBasedEventDrivenWorkStealingDispatcher(_name: String) extends Mess
   private def donateMessage(receiver: ActorRef, thief: ActorRef): Boolean = {
     val donated = receiver.mailbox.pollLast
     if (donated ne null) {
-      if (donated.senderFuture.isDefined) thief.self.postMessageToMailboxAndCreateFutureResultWithTimeout[Any](
+      if (donated.senderFuture.isDefined) thief.postMessageToMailboxAndCreateFutureResultWithTimeout[Any](
         donated.message, receiver.timeout, donated.sender, donated.senderFuture)
-      else if (donated.sender.isDefined) thief.self.postMessageToMailbox(donated.message, donated.sender)
-      else thief.self.postMessageToMailbox(donated.message, None)
+      else if (donated.sender.isDefined) thief.postMessageToMailbox(donated.message, donated.sender)
+      else thief.postMessageToMailbox(donated.message, None)
       true
     } else false
   }

@@ -357,7 +357,7 @@ object ActiveObject extends Logging {
   private[akka] def newInstance[T](target: Class[T], actorRef: ActorRef, remoteAddress: Option[InetSocketAddress], timeout: Long): T = {
     val proxy = Proxy.newInstance(target, true, false)
     val context = injectActiveObjectContext(proxy)
-    actorRef.actor.asInstanceOf[Dispatcher].initialize(target, proxy, context)
+    actorRef.actor.asInstanceOf[Dispatcher].initialize(Some(actorRef),target, proxy, context)
     ActorRegistry.unregister(actorRef) // do not store the dispatcher in the ActorRegistry since it will prevent GC
     actorRef.timeout = timeout
     if (remoteAddress.isDefined) actorRef.makeRemote(remoteAddress.get)
@@ -370,7 +370,7 @@ object ActiveObject extends Logging {
                                    remoteAddress: Option[InetSocketAddress], timeout: Long): T = {
     val context = injectActiveObjectContext(target)
     val proxy = Proxy.newInstance(Array(intf), Array(target), true, false)
-    actorRef.actor.asInstanceOf[Dispatcher].initialize(target.getClass, target, context)
+    actorRef.actor.asInstanceOf[Dispatcher].initialize(Some(actorRef),target.getClass, target, context)
     ActorRegistry.unregister(actorRef) // do not store the dispatcher in the ActorRegistry since it will prevent GC
     actorRef.timeout = timeout
     if (remoteAddress.isDefined) actorRef.makeRemote(remoteAddress.get)
@@ -670,11 +670,11 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
 
   def this(transactionalRequired: Boolean) = this(transactionalRequired,None)
 
-  private[actor] def initialize(targetClass: Class[_], targetInstance: AnyRef, ctx: Option[ActiveObjectContext]) = {
+  private[actor] def initialize(self: Self, targetClass: Class[_], targetInstance: AnyRef, ctx: Option[ActiveObjectContext]) = {
   
    if (transactionalRequired || targetClass.isAnnotationPresent(Annotations.transactionrequired))
-      self.makeTransactionRequired
-    self.id = targetClass.getName
+      self.get.makeTransactionRequired
+    self.get.id = targetClass.getName
     this.targetClass = targetClass
     target = Some(targetInstance)
     context = ctx
@@ -719,7 +719,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
     if (initTxState.isDefined) initTxState.get.setAccessible(true)
   }
 
-  def receive = {
+  def receive(implicit self : Self) = {
     case Invocation(joinPoint, isOneWay, _, sender, senderFuture) =>
       context.foreach { ctx =>
         if (sender ne null) ctx._sender = sender
@@ -739,7 +739,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
       throw new IllegalStateException("Unexpected message [" + unexpected + "] sent to [" + this + "]")
   }
 
-  override def preRestart(reason: Throwable) {
+  override def preRestart(reason: Throwable)(implicit self : Self) {
     try {
 	   // Since preRestart is called we know that this dispatcher
 	   // is about to be restarted. Put the instance in a thread
@@ -751,7 +751,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
     } catch { case e: InvocationTargetException => throw e.getCause }
   }
 
-  override def postRestart(reason: Throwable) {
+  override def postRestart(reason: Throwable)(implicit self : Self) {
     try {
 	 
       if (postRestart.isDefined) {
@@ -760,12 +760,12 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
     } catch { case e: InvocationTargetException => throw e.getCause }
   }
 
-  override def init = {
+  override def init(implicit self : Self) = {
 	// Get the crashed dispatcher from thread local and intitialize this actor with the
 	 // contents of the old dispatcher
 	  val oldActor = crashedActorTl.get();
 	  if(oldActor != null) {
-	  	initialize(oldActor.targetClass,oldActor.target.get,oldActor.context)
+	  	initialize(self,oldActor.targetClass,oldActor.target.get,oldActor.context)
 	  	crashedActorTl.set(null)
 	}
   }

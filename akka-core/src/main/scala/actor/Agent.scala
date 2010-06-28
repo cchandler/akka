@@ -213,14 +213,13 @@ object Agent {
 final class AgentDispatcher[T] private[akka] (initialValue: T) extends Transactor {
   import Agent._
   import Actor._
-  log.debug("Starting up Agent [%s]", self.uuid)
 
   private val value = Ref[T](initialValue)
 
   /**
    * Periodically handles incoming messages.
    */
-  def receive = {
+  def receive(implicit self: Self) = {
     case Value(v: T) =>
       swap(v)
     case Function(fun: (T => T)) =>

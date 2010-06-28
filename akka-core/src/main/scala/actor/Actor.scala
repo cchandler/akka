@@ -20,9 +20,7 @@ import com.google.protobuf.Message
  *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-trait Transactor extends Actor {
-  self.makeTransactionRequired
-}
+trait Transactor extends Actor
 
 /**
  * Extend this abstract class to create a remote actor.
@@ -32,7 +30,7 @@ trait Transactor extends Actor {
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 abstract class RemoteActor(hostname: String, port: Int) extends Actor {
-  self.makeRemote(hostname, port)
+  protected[akka] def makeRemote(self: Self) = self.get.makeRemote(hostname, port)
 }
 
 /**
@@ -50,7 +48,7 @@ trait SerializableActor extends Actor
 trait StatelessSerializableActor extends SerializableActor
 
 /**
- * Mix in this trait to create a serializable actor, serializable through 
+ * Mix in this trait to create a serializable actor, serializable through
  * a custom serialization protocol. This actor <b>is</b> the serialized state.
  *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
@@ -61,7 +59,7 @@ trait StatefulSerializerSerializableActor extends SerializableActor {
 }
 
 /**
- * Mix in this trait to create a serializable actor, serializable through 
+ * Mix in this trait to create a serializable actor, serializable through
  * a custom serialization protocol. This actor <b>is wrapping</b> serializable state.
  *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
@@ -150,8 +148,11 @@ object Actor extends Logging {
    * a PartialFunction[Any, Unit].
    */
   type Receive = PartialFunction[Any, Unit]
+  type Self    = Some[ActorRef]
 
-  private[actor] val actorRefInCreation = new scala.util.DynamicVariable[Option[ActorRef]](None)
+  implicit def selfToActorRef(self : Self) : ActorRef = self.get
+
+  //private[actor] val actorRefInCreation = new scala.util.DynamicVariable[Option[ActorRef]](None)
 
   /**
    * Creates a Actor.actorOf out of the Actor with type T.
@@ -207,8 +208,8 @@ object Actor extends Logging {
    */
   def actor(body: Receive): ActorRef =
     actorOf(new Actor() {
-      self.lifeCycle = Some(LifeCycle(Permanent))
-      def receive: Receive = body
+      override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
+      def receive(implicit self: Self): Receive = body
     }).start
 
   /**
@@ -229,8 +230,8 @@ object Actor extends Logging {
    */
   def transactor(body: Receive): ActorRef =
     actorOf(new Transactor() {
-      self.lifeCycle = Some(LifeCycle(Permanent))
-      def receive: Receive = body
+      override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
+      def receive(implicit self: Self): Receive = body
     }).start
 
   /**
@@ -249,8 +250,8 @@ object Actor extends Logging {
    */
   def temporaryActor(body: Receive): ActorRef =
     actorOf(new Actor() {
-      self.lifeCycle = Some(LifeCycle(Temporary))
-      def receive = body
+      override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
+      def receive(implicit self: Self) = body
     }).start
 
   /**
@@ -274,9 +275,9 @@ object Actor extends Logging {
     def handler[A](body: => Unit) = new {
       def receive(handler: Receive) =
         actorOf(new Actor() {
-          self.lifeCycle = Some(LifeCycle(Permanent))
+          override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
           body
-          def receive = handler
+          def receive(implicit self: Self) = handler
         }).start
     }
     handler(body)
@@ -300,7 +301,7 @@ object Actor extends Logging {
   def spawn(body: => Unit): Unit = {
     case object Spawn
     actorOf(new Actor() {
-      def receive = {
+      def receive(implicit self: Self) = {
         case Spawn => body; self.stop
       }
     }).start ! Spawn
@@ -369,14 +370,17 @@ trait Actor extends Logging {
    * Type alias because traits cannot have companion objects.
    */
   type Receive = Actor.Receive
+  type Self    = Actor.Self
 
+  import Actor.selfToActorRef
    /*
     * Option[ActorRef] representation of the 'self' ActorRef reference.
     * <p/>
     * Mainly for internal use, functions as the implicit sender references when invoking
     * one of the message send functions ('!', '!!' and '!!!').
     */
-  @transient implicit val optionSelf: Option[ActorRef] = {
+  
+  /*protected[akka] @transient implicit val optionSelf: Option[ActorRef] = {
     val ref = Actor.actorRefInCreation.value
     Actor.actorRefInCreation.value = None
     if (ref.isEmpty) throw new ActorInitializationException(
@@ -388,7 +392,7 @@ trait Actor extends Logging {
        "\n\t\t'val actor = Actor.actorOf(new MyActor(..))', or" +
        "\n\t\t'val actor = Actor.actor { case msg => .. } }'")
     else ref
-  }
+  }*/
 
   /*
    * Some[ActorRef] representation of the 'self' ActorRef reference.
@@ -396,40 +400,7 @@ trait Actor extends Logging {
    * Mainly for internal use, functions as the implicit sender references when invoking
    * the 'forward' function.
    */
-  @transient implicit val someSelf: Some[ActorRef] = optionSelf.asInstanceOf[Some[ActorRef]]
-
-  /**
-   * The 'self' field holds the ActorRef for this actor.
-   * <p/>
-   * Can be used to send messages to itself:
-   * <pre>
-   * self ! message
-   * </pre>
-   * Here you also find most of the Actor API.
-   * <p/>
-   * For example fields like:
-   * <pre>
-   * self.dispactcher = ...
-   * self.trapExit = ...
-   * self.faultHandler = ...
-   * self.lifeCycle = ...
-   * self.sender
-   * </pre>
-   * <p/>
-   * Here you also find methods like:
-   * <pre>
-   * self.reply(..)
-   * self.link(..)
-   * self.unlink(..)
-   * self.start(..)
-   * self.stop(..)
-   * </pre>
-   */
-  @transient val self: ActorRef = {
-    val zelf = optionSelf.get
-    zelf.id = getClass.getName
-    zelf
-  }
+  //protected[akka] @transient implicit val someSelf: Some[ActorRef] = optionSelf.asInstanceOf[Some[ActorRef]]
 
   /**
    * User overridable callback/setting.
@@ -452,35 +423,35 @@ trait Actor extends Logging {
    * }
    * </pre>
    */
-  protected def receive: Receive
+  protected def receive(implicit self: Self): Receive
 
   /**
    * User overridable callback.
    * <p/>
    * Is called when an Actor is started by invoking 'actor.start'.
    */
-  def init {}
+  def init(implicit self: Self) {}
 
   /**
    * User overridable callback.
    * <p/>
    * Is called when 'actor.stop' is invoked.
    */
-  def shutdown {}
+  def shutdown(implicit self: Self) {}
 
   /**
    * User overridable callback.
    * <p/>
    * Is called on a crashed Actor right BEFORE it is restarted to allow clean up of resources before Actor is terminated.
    */
-  def preRestart(reason: Throwable) {}
+  def preRestart(reason: Throwable)(implicit self: Self) {}
 
   /**
    * User overridable callback.
    * <p/>
    * Is called right AFTER restart on the newly created Actor to allow reinitialization after an Actor crash.
    */
-  def postRestart(reason: Throwable) {}
+  def postRestart(reason: Throwable)(implicit self: Self) {}
 
   /**
    * User overridable callback.
@@ -489,34 +460,14 @@ trait Actor extends Logging {
    */
   def initTransactionalState {}
 
-  /**
-   * Use <code>reply(..)</code> to reply with a message to the original sender of the message currently
-   * being processed.
-   * <p/>
-   * Throws an IllegalStateException if unable to determine what to reply to.
-   */
-  def reply(message: Any) = self.reply(message)
-
-  /**
-   * Use <code>reply_?(..)</code> to reply with a message to the original sender of the message currently
-   * being processed.
-   * <p/>
-   * Returns true if reply was sent, and false if unable to determine what to reply to.
-   */
-  def reply_?(message: Any): Boolean = self.reply_?(message)
-
   // =========================================
   // ==== INTERNAL IMPLEMENTATION DETAILS ====
   // =========================================
 
-  private[akka] def base: Receive = try {
-    lifeCycles orElse (self.hotswap getOrElse receive)
-  } catch {
-    case e: NullPointerException => throw new IllegalStateException(
-      "The 'self' ActorRef reference for [" + getClass.getName + "] is NULL, error in the ActorRef initialization process.")
-  }
+  private[akka] def base(implicit self: Self): Receive =
+    lifeCycles(self) orElse (self.hotswap getOrElse receive(self))
 
-  private val lifeCycles: Receive = {
+  private def lifeCycles(implicit self: Self): Receive = {
     case HotSwap(code) =>        self.hotswap = code
     case Restart(reason) =>      self.restart(reason)
     case Exit(dead, reason) =>   self.handleTrapExit(dead, reason)

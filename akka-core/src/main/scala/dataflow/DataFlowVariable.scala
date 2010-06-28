@@ -33,7 +33,7 @@ import se.scalablesolutions.akka.dispatch.CompletableFuture
   }
 
   private class IsolatedEventBasedThread(body: => Unit) extends Actor {
-    def receive = {
+    def receive(implicit self: Self) = {
       case Start => body
       case Exit => exit
     }
@@ -44,7 +44,7 @@ import se.scalablesolutions.akka.dispatch.CompletableFuture
 
   private class ReactiveEventBasedThread[A <: AnyRef, T <: AnyRef](body: A => T)
     extends Actor {
-    def receive = {
+    def receive(implicit self: Self) = {
       case Exit => exit
       case message => self.reply(body(message.asInstanceOf[A]))
     }
@@ -64,8 +64,8 @@ import se.scalablesolutions.akka.dispatch.CompletableFuture
     private val blockedReaders = new ConcurrentLinkedQueue[ActorRef]
 
     private class In[T <: Any](dataFlow: DataFlowVariable[T]) extends Actor {
-      self.timeout = TIME_OUT
-      def receive = {
+      override def init(implicit self: Self) = self.timeout = TIME_OUT
+      def receive(implicit self: Self) = {
         case Set(v) =>
           if (dataFlow.value.compareAndSet(None, Some(v.asInstanceOf[T]))) {
             val iterator = dataFlow.blockedReaders.iterator
@@ -78,9 +78,9 @@ import se.scalablesolutions.akka.dispatch.CompletableFuture
     }
 
     private class Out[T <: Any](dataFlow: DataFlowVariable[T]) extends Actor {
-      self.timeout = TIME_OUT
+      override def init(implicit self: Self) = self.timeout = TIME_OUT
       private var readerFuture: Option[CompletableFuture[T]] = None
-      def receive = {
+      def receive(implicit self: Self) = {
         case Get =>
           val ref = dataFlow.value.get
           if (ref.isDefined) self.reply(ref.get)

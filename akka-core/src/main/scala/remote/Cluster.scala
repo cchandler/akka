@@ -81,15 +81,15 @@ abstract class BasicClusterActor extends ClusterActor with Logging {
   @volatile private var local: Node = Node(Nil)
   @volatile private var remotes: Map[ADDR_T, Node] = Map()
 
-  override def init = {
+  override def init(implicit self: Self) = {
     remotes = new HashMap[ADDR_T, Node]
   }
 
-  override def shutdown = {
+  override def shutdown(implicit self: Self) = {
     remotes = Map()
   }
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case v: View[ADDR_T] => {
       // Not present in the cluster anymore = presumably zombies
       // Nodes we have no prior knowledge existed = unknowns

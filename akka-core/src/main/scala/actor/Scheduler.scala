@@ -62,7 +62,7 @@ object Scheduler {
 }
 
 private class ScheduleActor(future: ScheduledFuture[AnyRef]) extends Actor with Logging {
-  def receive = {
+  def receive(implicit self: Self) = {
     case Scheduler.UnSchedule =>
       future.cancel(true)
       exit

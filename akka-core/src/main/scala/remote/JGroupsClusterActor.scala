@@ -17,7 +17,7 @@ class JGroupsClusterActor extends BasicClusterActor {
   @volatile private var isActive = false
   @volatile private var channel: Option[JChannel] = None
 
-  override def init = {
+  override def init(implicit self: Self) = {
     super.init
     log info "Initiating JGroups-based cluster actor"
     isActive = true
@@ -30,13 +30,13 @@ class JGroupsClusterActor extends BasicClusterActor {
         def setState(state: Array[Byte]): Unit = ()
 
         def receive(m: JG_MSG): Unit =
-          if (isActive && m.getSrc != channel.map(_.getAddress).getOrElse(m.getSrc)) self ! Message(m.getSrc,m.getRawBuffer)
+          if (isActive && m.getSrc != channel.map(_.getAddress).getOrElse(m.getSrc)) self.get ! Message(m.getSrc,m.getRawBuffer)
 
         def viewAccepted(view: JG_VIEW): Unit =
-          if (isActive) self ! View(Set[ADDR_T]() ++ view.getMembers - channel.get.getAddress)
+          if (isActive) self.get ! View(Set[ADDR_T]() ++ view.getMembers - channel.get.getAddress)
 
         def suspect(a: Address): Unit =
-          if (isActive) self ! Zombie(a)
+          if (isActive) self.get ! Zombie(a)
 
         def block: Unit =
           log debug "UNSUPPORTED: JGroupsClusterActor::block" //TODO HotSwap to a buffering body
@@ -55,7 +55,7 @@ class JGroupsClusterActor extends BasicClusterActor {
   protected def toAllNodes(msg : Array[Byte]) : Unit =
     for (c <- channel) c.send(new JG_MSG(null, null, msg))
 
-  override def shutdown = {
+  override def shutdown(implicit self: Self) = {
     super.shutdown
     log info ("Shutting down %s", toString)
     isActive = false

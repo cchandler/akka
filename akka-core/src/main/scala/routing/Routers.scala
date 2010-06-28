@@ -15,15 +15,13 @@ trait Dispatcher { this: Actor =>
 
   protected def routes: PartialFunction[Any, ActorRef]
 
-  protected def dispatch: Receive = {
+  protected def dispatch(implicit self: Self): Receive = {
     case a if routes.isDefinedAt(a) =>
-      if (isSenderDefined) routes(a).forward(transform(a))(someSelf)
+      if (self.get.senderFuture.isDefined || self.get.sender.isDefined) routes(a).forward(transform(a))(self)
       else routes(a).!(transform(a))(None)
   }
 
-  def receive = dispatch
-
-  private def isSenderDefined = self.senderFuture.isDefined || self.sender.isDefined
+  def receive(implicit self: Self) = dispatch
 }
 
 /**
