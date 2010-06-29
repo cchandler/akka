@@ -1,11 +1,11 @@
-package se.scalablesolutions.akka.api;
+package se.scalablesolutions.akka.actor;
 
 import se.scalablesolutions.akka.actor.annotation.transactionrequired;
 import se.scalablesolutions.akka.actor.annotation.inittransactionalstate;
 import se.scalablesolutions.akka.stm.*;
 
 @transactionrequired
-public class InMemStatefulNested {
+public class NestedTransactionalActiveObject {
   private TransactionalMap<String, String> mapState;
   private TransactionalVector<String> vectorState;
   private Ref<String> refState;
@@ -58,7 +58,7 @@ public class InMemStatefulNested {
   }
 
 
-  public String failure(String key, String msg, InMemFailer failer) {
+  public String failure(String key, String msg, ActiveObjectFailer failer) {
     mapState.put(key, msg);
     vectorState.add(msg);
     refState.swap(msg);
@@ -67,7 +67,7 @@ public class InMemStatefulNested {
   }
 
 
-  public void thisMethodHangs(String key, String msg, InMemFailer failer) {
+  public void thisMethodHangs(String key, String msg, ActiveObjectFailer failer) {
     setMapState(key, msg);
   }
 
