@@ -138,6 +138,13 @@ case class Unlink(child: ActorRef) extends LifeCycleMessage
 case class UnlinkAndStop(child: ActorRef) extends LifeCycleMessage
 case object Kill extends LifeCycleMessage
 
+case object Init extends LifeCycleMessage
+case object InitTransactionalState extends LifeCycleMessage
+case object Shutdown extends LifeCycleMessage
+case class PreRestart(cause: Throwable) extends LifeCycleMessage
+case class PostRestart(cause: Throwable) extends LifeCycleMessage
+
+
 case object ReceiveTimeout
 
 // Exceptions for Actors
@@ -324,6 +331,11 @@ object Actor extends Logging {
    * to convert an Option[Any] to an Option[T].
    */
   implicit def toAnyOptionAsTypedOption(anyOption: Option[Any]) = new AnyOptionAsTypedOption(anyOption)
+  
+  /**
+   * A catch-all for LifeCycleMessages that are leaking through
+   */
+   private[Actor] val ignoreLifeCycles : Receive = { case ignore: LifeCycleMessage => }
 }
 
 /**
@@ -384,35 +396,7 @@ trait Actor extends Logging {
   type Receive = Actor.Receive
   type Self    = Actor.Self
 
-  import Actor.selfToActorRef
-  /*
-  * Option[ActorRef] representation of the 'self' ActorRef reference.
-  * <p/>
-  * Mainly for internal use, functions as the implicit sender references when invoking
-  * one of the message send functions ('!', '!!' and '!!!').
-  */
-  /*@transient implicit val optionSelf: Option[ActorRef] = {
-    val ref = Actor.actorRefInCreation.value
-    Actor.actorRefInCreation.value = None
-    if (ref.isEmpty) throw new ActorInitializationException(
-      "ActorRef for instance of actor [" + getClass.getName + "] is not in scope." +
-              "\n\tYou can not create an instance of an actor explicitly using 'new MyActor'." +
-              "\n\tYou have to use one of the factory methods in the 'Actor' object to create a new actor." +
-              "\n\tEither use:" +
-              "\n\t\t'val actor = Actor.actorOf[MyActor]', or" +
-              "\n\t\t'val actor = Actor.actorOf(new MyActor(..))', or" +
-              "\n\t\t'val actor = Actor.actor { case msg => .. } }'")
-    else ref
-  }*/
-
-  /*
-   * Some[ActorRef] representation of the 'self' ActorRef reference.
-   * <p/>
-   * Mainly for internal use, functions as the implicit sender references when invoking
-   * the 'forward' function.
-   */
-  //protected[akka] @transient implicit val someSelf: Some[ActorRef] = optionSelf.asInstanceOf[Some[ActorRef]]
-
+  import Actor.{selfToActorRef,ignoreLifeCycles}
   /**
    * User overridable callback/setting.
    * <p/>
@@ -435,101 +419,41 @@ trait Actor extends Logging {
    * </pre>
    */
   protected def receive(implicit self: Self): Receive
-
-  /**
-   * User overridable callback.
-   * <p/>
-   * Is called when an Actor is started by invoking 'actor.start'.
-   */
-  def init(implicit self: Self) {}
-
-  /**
-   * User overridable callback.
-   * <p/>
-   * Is called when 'actor.stop' is invoked.
-   */
-  def shutdown(implicit self: Self) {}
-
-  /**
-   * User overridable callback.
-   * <p/>
-   * Is called on a crashed Actor right BEFORE it is restarted to allow clean up of resources before Actor is terminated.
-   */
-  def preRestart(reason: Throwable)(implicit self: Self) {}
-
-  /**
-   * User overridable callback.
-   * <p/>
-   * Is called right AFTER restart on the newly created Actor to allow reinitialization after an Actor crash.
-   */
-  def postRestart(reason: Throwable)(implicit self: Self) {}
-
-  /**
-   * User overridable callback.
-   * <p/>
-   * Is called during initialization. Can be used to initialize transactional state. Will be invoked within a transaction.
-   */
-  def initTransactionalState {}
-
-  /**
-   * Use <code>reply(..)</code> to reply with a message to the original sender of the message currently
-   * being processed.
-   * <p/>
-   * Throws an IllegalStateException if unable to determine what to reply to.
-   */
-  def reply(message: Any) = self.reply(message)
-
-  /**
-   * Use <code>reply_?(..)</code> to reply with a message to the original sender of the message currently
-   * being processed.
-   * <p/>
-   * Returns true if reply was sent, and false if unable to determine what to reply to.
-   */
-  def reply_?(message: Any): Boolean = self.reply_?(message)
-
-  /**
-   * Is the actor able to handle the message passed in as arguments?
-   */
-  def isDefinedAt(message: Any): Boolean = base.isDefinedAt(message)
   
   // =========================================
   // ==== INTERNAL IMPLEMENTATION DETAILS ====
   // =========================================
 
   private[akka] def base(implicit self: Self): Receive = try {
-    cancelReceiveTimeout
-    lifeCycles orElse (self.hotswap getOrElse receive)
+
+    if(timeoutActor.isDefined) {
+      Scheduler.unschedule(timeoutActor.get)
+      timeoutActor = None
+      log.debug("Timeout canceled")
+    }
+
+    systemLifeCycles orElse (self.hotswap getOrElse receive) orElse ignoreLifeCycles
   } catch {
     case e: NullPointerException => throw new IllegalStateException(
       "The 'self' ActorRef reference for [" + getClass.getName + "] is NULL, error in the ActorRef initialization process.")
   }
+  
+  @volatile protected[akka] var timeoutActor: Option[ActorRef] = None
 
-  private val lifeCycles(implicit self: Self): Receive = {
-    case HotSwap(code) => self.hotswap = code; checkReceiveTimeout
+  private val systemLifeCycles(self: Self): Receive = {
+    case HotSwap(code) => {
+      self.hotswap = code
+      if (self.isDefinedAt(ReceiveTimeout)) {
+        log.debug("Scheduling timeout for Actor [" + toString + "]")
+        timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))
+      }
+    }
     case Restart(reason) => self.restart(reason)
     case Exit(dead, reason) => self.handleTrapExit(dead, reason)
     case Link(child) => self.link(child)
     case Unlink(child) => self.unlink(child)
     case UnlinkAndStop(child) => self.unlink(child); child.stop
     case Kill => throw new ActorKilledException("Actor [" + toString + "] was killed by a Kill message")
-  }
-
-  @volatile protected[akka] var timeoutActor: Option[ActorRef] = None
-
-  private[akka] def cancelReceiveTimeout = {
-    timeoutActor.foreach {
-      x =>
-        Scheduler.unschedule(x)
-        timeoutActor = None
-        log.debug("Timeout canceled")
-    }
-  }
-
-  private[akka] def checkReceiveTimeout = {
-    if (self.isDefinedAt(ReceiveTimeout)) {
-      log.debug("Scheduling timeout for Actor [" + toString + "]")
-      timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))
-    }
   }
 }
 
