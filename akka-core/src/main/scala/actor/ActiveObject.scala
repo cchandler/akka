@@ -666,12 +666,11 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
   private var context: Option[ActiveObjectContext] = None
   private var targetClass:Class[_] = _
 
-  
+
 
   def this(transactionalRequired: Boolean) = this(transactionalRequired,None)
 
   private[actor] def initialize(self: Self, targetClass: Class[_], targetInstance: AnyRef, ctx: Option[ActiveObjectContext]) = {
-  
    if (transactionalRequired || targetClass.isAnnotationPresent(Annotations.transactionrequired))
       self.get.makeTransactionRequired
     self.get.id = targetClass.getName
@@ -741,22 +740,22 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
 
   override def preRestart(reason: Throwable)(implicit self : Self) {
     try {
-	   // Since preRestart is called we know that this dispatcher
-	   // is about to be restarted. Put the instance in a thread
-	   // local so the new dispatcher can be initialized with the contents of the
-	   // old.
-	   //FIXME - This should be considered as a workaround.
-	   crashedActorTl.set(this)
+           // Since preRestart is called we know that this dispatcher
+           // is about to be restarted. Put the instance in a thread
+           // local so the new dispatcher can be initialized with the contents of the
+           // old.
+           //FIXME - This should be considered as a workaround.
+           crashedActorTl.set(this)
       if (preRestart.isDefined) preRestart.get.invoke(target.get, ZERO_ITEM_OBJECT_ARRAY: _*)
     } catch { case e: InvocationTargetException => throw e.getCause }
   }
 
   override def postRestart(reason: Throwable)(implicit self : Self) {
     try {
-	 
+
       if (postRestart.isDefined) {
-		postRestart.get.invoke(target.get, ZERO_ITEM_OBJECT_ARRAY: _*)
-	  } 
+                postRestart.get.invoke(target.get, ZERO_ITEM_OBJECT_ARRAY: _*)
+          }
     } catch { case e: InvocationTargetException => throw e.getCause }
   }
 
@@ -767,7 +766,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
 	  if(oldActor != null) {
 	  	initialize(self,oldActor.targetClass,oldActor.target.get,oldActor.context)
 	  	crashedActorTl.set(null)
-	}
+	  }
   }
 
   override def initTransactionalState = {

@@ -10,10 +10,11 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
+import org.junit.{Test, Before, After}
 
 import se.scalablesolutions.akka.config.Config
 import se.scalablesolutions.akka.config.ActiveObjectConfigurator
-import se.scalablesolutions.akka.remote.{RemoteNode, RemoteServer}
+import se.scalablesolutions.akka.remote.{RemoteNode, RemoteServer, RemoteClient}
 
 object RemoteTransactionalActiveObjectSpec {
   val HOSTNAME = "localhost"
@@ -23,20 +24,32 @@ object RemoteTransactionalActiveObjectSpec {
 
 @RunWith(classOf[JUnitRunner])
 class RemoteTransactionalActiveObjectSpec extends
-  Spec with 
-  ShouldMatchers with 
-  BeforeAndAfterAll {  
+  Spec with
+  ShouldMatchers with
+  BeforeAndAfterAll {
 
   import RemoteTransactionalActiveObjectSpec._
   Config.config
 
-  server = new RemoteServer()
-  server.start(HOSTNAME, PORT)
-
   private val conf = new ActiveObjectConfigurator
-  private var messageLog = ""  
-  
-  override def afterAll = conf.stop
+  private var messageLog = ""
+
+  override def beforeAll = {
+    server = new RemoteServer()
+    server.start(HOSTNAME, PORT)
+    Thread.sleep(1000)
+  }
+
+  override def afterAll = {
+    conf.stop
+    try {
+      server.shutdown
+      RemoteClient.shutdownAll
+      Thread.sleep(1000)
+    } catch {
+      case e => ()
+    }
+  }
 
   describe("Remote transactional in-memory Active Object ") {
 

@@ -8,10 +8,11 @@ import se.scalablesolutions.akka.dispatch._
 import se.scalablesolutions.akka.config.Config._
 import se.scalablesolutions.akka.config.ScalaConfig._
 import se.scalablesolutions.akka.serialization.Serializer
-import se.scalablesolutions.akka.util.Helpers.{ narrow, narrowSilently }
+import se.scalablesolutions.akka.util.Helpers.{narrow, narrowSilently}
 import se.scalablesolutions.akka.util.Logging
 
 import com.google.protobuf.Message
+import java.util.concurrent.TimeUnit
 
 /**
  * Implements the Transactor abstraction. E.g. a transactional actor.
@@ -55,6 +56,7 @@ trait StatelessSerializableActor extends SerializableActor
  */
 trait StatefulSerializerSerializableActor extends SerializableActor {
   val serializer: Serializer
+
   def toBinary: Array[Byte]
 }
 
@@ -66,6 +68,7 @@ trait StatefulSerializerSerializableActor extends SerializableActor {
  */
 trait StatefulWrappedSerializableActor extends SerializableActor {
   def toBinary: Array[Byte]
+
   def fromBinary(bytes: Array[Byte])
 }
 
@@ -77,10 +80,13 @@ trait StatefulWrappedSerializableActor extends SerializableActor {
  */
 trait ProtobufSerializableActor[T <: Message] extends StatefulWrappedSerializableActor {
   def toBinary: Array[Byte] = toProtobuf.toByteArray
+
   def fromBinary(bytes: Array[Byte]) = fromProtobuf(Serializer.Protobuf.fromBinary(bytes, Some(clazz)).asInstanceOf[T])
 
   val clazz: Class[T]
+
   def toProtobuf: T
+
   def fromProtobuf(message: T): Unit
 }
 
@@ -92,6 +98,7 @@ trait ProtobufSerializableActor[T <: Message] extends StatefulWrappedSerializabl
  */
 trait JavaSerializableActor extends StatefulSerializerSerializableActor {
   @transient val serializer = Serializer.Java
+
   def toBinary: Array[Byte] = serializer.toBinary(this)
 }
 
@@ -103,6 +110,7 @@ trait JavaSerializableActor extends StatefulSerializerSerializableActor {
  */
 trait JavaJSONSerializableActor extends StatefulSerializerSerializableActor {
   val serializer = Serializer.JavaJSON
+
   def toBinary: Array[Byte] = serializer.toBinary(this)
 }
 
@@ -114,6 +122,7 @@ trait JavaJSONSerializableActor extends StatefulSerializerSerializableActor {
  */
 trait ScalaJSONSerializableActor extends StatefulSerializerSerializableActor {
   val serializer = Serializer.ScalaJSON
+
   def toBinary: Array[Byte] = serializer.toBinary(this)
 }
 
@@ -129,6 +138,8 @@ case class Unlink(child: ActorRef) extends LifeCycleMessage
 case class UnlinkAndStop(child: ActorRef) extends LifeCycleMessage
 case object Kill extends LifeCycleMessage
 
+case object ReceiveTimeout
+
 // Exceptions for Actors
 class ActorStartException private[akka](message: String) extends RuntimeException(message)
 class ActorKilledException private[akka](message: String) extends RuntimeException(message)
@@ -140,7 +151,8 @@ class ActorInitializationException private[akka](message: String) extends Runtim
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 object Actor extends Logging {
-  val TIMEOUT =            config.getInt("akka.actor.timeout", 5000)
+  val TIMEOUT = config.getInt("akka.actor.timeout", 5000)
+  val RECEIVE_TIMEOUT = config.getInt("akka.actor.receive.timeout", 30000)
   val SERIALIZE_MESSAGES = config.getBool("akka.actor.serialize-messages", false)
 
   /**
@@ -168,7 +180,7 @@ object Actor extends Logging {
    *   val actor = actorOf[MyActor].start
    * </pre>
    */
-  def actorOf[T <: Actor: Manifest]: ActorRef = new LocalActorRef(manifest[T].erasure.asInstanceOf[Class[_ <: Actor]])
+  def actorOf[T <: Actor : Manifest]: ActorRef = new LocalActorRef(manifest[T].erasure.asInstanceOf[Class[_ <: Actor]])
 
   /**
    * Creates a Actor.actorOf out of the Actor. Allows you to pass in a factory function
@@ -201,7 +213,7 @@ object Actor extends Logging {
    * <pre>
    * import Actor._
    *
-   * val a = actor {
+   * val a = actor  {
    *   case msg => ... // handle message
    * }
    * </pre>
@@ -223,7 +235,7 @@ object Actor extends Logging {
    * <pre>
    * import Actor._
    *
-   * val a = transactor {
+   * val a = transactor  {
    *   case msg => ... // handle message
    * }
    * </pre>
@@ -243,7 +255,7 @@ object Actor extends Logging {
    * <pre>
    * import Actor._
    *
-   * val a = temporaryActor {
+   * val a = temporaryActor  {
    *   case msg => ... // handle message
    * }
    * </pre>
@@ -263,9 +275,9 @@ object Actor extends Logging {
    * The actor is started when created.
    * Example:
    * <pre>
-   * val a = Actor.init {
+   * val a = Actor.init  {
    *   ... // init stuff
-   * } receive  {
+   * } receive   {
    *   case msg => ... // handle message
    * }
    * </pre>
@@ -293,7 +305,7 @@ object Actor extends Logging {
    * <pre>
    * import Actor._
    *
-   * spawn {
+   * spawn  {
    *   ... // do stuff
    * }
    * </pre>
@@ -351,7 +363,7 @@ object Actor extends Logging {
  * However, for convenience you can import these functions and fields like below, which will allow you do
  * drop the 'self' prefix:
  * <pre>
- * class MyActor extends Actor {
+ * class MyActor extends Actor  {
  *   import self._
  *   id = ...
  *   dispatcher = ...
@@ -373,24 +385,23 @@ trait Actor extends Logging {
   type Self    = Actor.Self
 
   import Actor.selfToActorRef
-   /*
-    * Option[ActorRef] representation of the 'self' ActorRef reference.
-    * <p/>
-    * Mainly for internal use, functions as the implicit sender references when invoking
-    * one of the message send functions ('!', '!!' and '!!!').
-    */
-  
-  /*protected[akka] @transient implicit val optionSelf: Option[ActorRef] = {
+  /*
+  * Option[ActorRef] representation of the 'self' ActorRef reference.
+  * <p/>
+  * Mainly for internal use, functions as the implicit sender references when invoking
+  * one of the message send functions ('!', '!!' and '!!!').
+  */
+  /*@transient implicit val optionSelf: Option[ActorRef] = {
     val ref = Actor.actorRefInCreation.value
     Actor.actorRefInCreation.value = None
     if (ref.isEmpty) throw new ActorInitializationException(
-       "ActorRef for instance of actor [" + getClass.getName + "] is not in scope." +
-       "\n\tYou can not create an instance of an actor explicitly using 'new MyActor'." +
-       "\n\tYou have to use one of the factory methods in the 'Actor' object to create a new actor." +
-       "\n\tEither use:" +
-       "\n\t\t'val actor = Actor.actorOf[MyActor]', or" +
-       "\n\t\t'val actor = Actor.actorOf(new MyActor(..))', or" +
-       "\n\t\t'val actor = Actor.actor { case msg => .. } }'")
+      "ActorRef for instance of actor [" + getClass.getName + "] is not in scope." +
+              "\n\tYou can not create an instance of an actor explicitly using 'new MyActor'." +
+              "\n\tYou have to use one of the factory methods in the 'Actor' object to create a new actor." +
+              "\n\tEither use:" +
+              "\n\t\t'val actor = Actor.actorOf[MyActor]', or" +
+              "\n\t\t'val actor = Actor.actorOf(new MyActor(..))', or" +
+              "\n\t\t'val actor = Actor.actor { case msg => .. } }'")
     else ref
   }*/
 
@@ -410,7 +421,7 @@ trait Actor extends Logging {
    * <p/>
    * Example code:
    * <pre>
-   *   def receive = {
+   *   def receive =  {
    *     case Ping =&gt;
    *       log.info("got a 'Ping' message")
    *       self.reply("pong")
@@ -477,25 +488,48 @@ trait Actor extends Logging {
   def reply_?(message: Any): Boolean = self.reply_?(message)
 
   /**
-  * Is the actor able to handle the message passed in as arguments?
-  */
+   * Is the actor able to handle the message passed in as arguments?
+   */
   def isDefinedAt(message: Any): Boolean = base.isDefinedAt(message)
   
   // =========================================
   // ==== INTERNAL IMPLEMENTATION DETAILS ====
   // =========================================
 
-  private[akka] def base(implicit self: Self): Receive =
-    lifeCycles(self) orElse (self.hotswap getOrElse receive(self))
+  private[akka] def base(implicit self: Self): Receive = try {
+    cancelReceiveTimeout
+    lifeCycles orElse (self.hotswap getOrElse receive)
+  } catch {
+    case e: NullPointerException => throw new IllegalStateException(
+      "The 'self' ActorRef reference for [" + getClass.getName + "] is NULL, error in the ActorRef initialization process.")
+  }
 
-  private def lifeCycles(implicit self: Self): Receive = {
-    case HotSwap(code) =>        self.hotswap = code
-    case Restart(reason) =>      self.restart(reason)
-    case Exit(dead, reason) =>   self.handleTrapExit(dead, reason)
-    case Link(child) =>          self.link(child)
-    case Unlink(child) =>        self.unlink(child)
+  private val lifeCycles(implicit self: Self): Receive = {
+    case HotSwap(code) => self.hotswap = code; checkReceiveTimeout
+    case Restart(reason) => self.restart(reason)
+    case Exit(dead, reason) => self.handleTrapExit(dead, reason)
+    case Link(child) => self.link(child)
+    case Unlink(child) => self.unlink(child)
     case UnlinkAndStop(child) => self.unlink(child); child.stop
-    case Kill =>                 throw new ActorKilledException("Actor [" + toString + "] was killed by a Kill message")
+    case Kill => throw new ActorKilledException("Actor [" + toString + "] was killed by a Kill message")
+  }
+
+  @volatile protected[akka] var timeoutActor: Option[ActorRef] = None
+
+  private[akka] def cancelReceiveTimeout = {
+    timeoutActor.foreach {
+      x =>
+        Scheduler.unschedule(x)
+        timeoutActor = None
+        log.debug("Timeout canceled")
+    }
+  }
+
+  private[akka] def checkReceiveTimeout = {
+    if (self.isDefinedAt(ReceiveTimeout)) {
+      log.debug("Scheduling timeout for Actor [" + toString + "]")
+      timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))
+    }
   }
 }
 

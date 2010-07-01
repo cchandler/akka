@@ -28,7 +28,7 @@ class SerializableActorSpec extends
       actor2.start
       (actor2 !! "hello").getOrElse("_") should equal("world 2")
     }
-    
+
     it("should be able to serialize and deserialize a ProtobufSerializableActor") {
       val actor1 = actorOf[ProtobufSerializableTestActor].start
       (actor1 !! "hello").getOrElse("_") should equal("world 1")
@@ -51,7 +51,7 @@ class SerializableActorSpec extends
       actor2.start
       (actor2 !! "hello").getOrElse("_") should equal("world")
     }
-    
+
     it("should be able to serialize and deserialize a StatelessSerializableTestActorWithMessagesInMailbox") {
       val actor1 = actorOf[StatelessSerializableTestActorWithMessagesInMailbox].start
       (actor1 ! "hello")
@@ -104,7 +104,7 @@ class ProtobufSerializableTestActor extends ProtobufSerializableActor[ProtobufPr
 class StatelessSerializableTestActorWithMessagesInMailbox extends StatelessSerializableActor {
   def receive = {
     case "hello" =>
-      println("# messages in mailbox " + self.mailbox.size)
+      if (self ne null) println("# messages in mailbox " + self.mailbox.size)
       Thread.sleep(500)
     case "hello-reply" => self.reply("world")
   }

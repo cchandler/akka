@@ -17,13 +17,13 @@ public class Foo extends se.scalablesolutions.akka.serialization.Serializable.Ja
   }
   public String longRunning() {
     try {
-      Thread.sleep(1000);
+      Thread.sleep(1200);
     } catch (InterruptedException e) {
     }
     return "test";
   }
   public String throwsException() {
-    if (true) throw new RuntimeException("expected");
+    if (true) throw new RuntimeException("Expected exception; to test fault-tolerance");
     return "test";
   }
   
