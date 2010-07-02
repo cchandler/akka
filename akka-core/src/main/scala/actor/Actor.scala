@@ -52,11 +52,11 @@ case object Shutdown extends LifeCycleMessage
 case class PreRestart(cause: Throwable) extends LifeCycleMessage
 case class PostRestart(cause: Throwable) extends LifeCycleMessage
 
-
-case object ReceiveTimeout
+case object ReceiveTimeout extends LifeCycleMessage
 
 // Exceptions for Actors
 class ActorStartException private[akka](message: String) extends RuntimeException(message)
+class IllegalActorStateException private[akka](message: String) extends RuntimeException(message)
 class ActorKilledException private[akka](message: String) extends RuntimeException(message)
 class ActorInitializationException private[akka](message: String) extends RuntimeException(message)
 
@@ -333,16 +333,10 @@ trait Actor extends Logging {
   // =========================================
 
   private[akka] def base(implicit self: Self): Receive = try {
-
-    if(timeoutActor.isDefined) {
-      Scheduler.unschedule(timeoutActor.get)
-      timeoutActor = None
-      log.debug("Timeout canceled")
-    }
-
+    cancelReceiveTimeout
     systemLifeCycles orElse (self.hotswap getOrElse receive) orElse ignoreLifeCycles
   } catch {
-    case e: NullPointerException => throw new IllegalStateException(
+    case e: NullPointerException => throw new IllegalActorStateException(
       "The 'self' ActorRef reference for [" + getClass.getName + "] is NULL, error in the ActorRef initialization process.")
   }
   
@@ -351,10 +345,7 @@ trait Actor extends Logging {
   private val systemLifeCycles(self: Self): Receive = {
     case HotSwap(code) => {
       self.hotswap = code
-      if (self.isDefinedAt(ReceiveTimeout)) {
-        log.debug("Scheduling timeout for Actor [" + toString + "]")
-        timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))
-      }
+      checkReceiveTimeout
     }
     case Restart(reason) => self.restart(reason)
     case Exit(dead, reason) => self.handleTrapExit(dead, reason)
@@ -362,6 +353,23 @@ trait Actor extends Logging {
     case Unlink(child) => self.unlink(child)
     case UnlinkAndStop(child) => self.unlink(child); child.stop
     case Kill => throw new ActorKilledException("Actor [" + toString + "] was killed by a Kill message")
+  }
+
+  @volatile protected[akka] var timeoutActor: Option[ActorRef] = None
+
+  private[akka] def cancelReceiveTimeout = {
+    if(timeoutActor.isDefined) {
+      Scheduler.unschedule(timeoutActor.get)
+      timeoutActor = None
+      log.debug("Timeout canceled")
+    }
+  }
+
+  private[akka] def checkReceiveTimeout(implicit self : Self) = {
+    if((self.map(_.hotswap) orElse Option(receive)).map(_.isDefinedAt(ReceiveTimeout)).getOrElse(false)) {
+      log.debug("Scheduling timeout for Actor [" + toString + "]")
+      timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))
+    }
   }
 }
 
