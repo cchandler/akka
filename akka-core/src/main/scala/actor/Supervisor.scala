@@ -134,7 +134,7 @@ sealed class Supervisor private[akka] (
     this
   }
 
-  def shutdown: Unit = supervisor.stop
+  def shutdown(): Unit = supervisor.stop
 
   def link(child: ActorRef) = supervisor.link(child)
 
@@ -179,11 +179,12 @@ sealed class Supervisor private[akka] (
 final class SupervisorActor private[akka] (
   handler: FaultHandlingStrategy,
   trapExceptions: List[Class[_ <: Throwable]]) extends Actor {
-  
+
   override def init(implicit self: Self) = {
     self.trapExit = trapExceptions
     self.faultHandler = Some(handler)
   }
+  
   override def shutdown(implicit self: Self): Unit = self.shutdownLinkedActors
 
   def receive(implicit self: Self) = {

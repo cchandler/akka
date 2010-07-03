@@ -12,7 +12,7 @@ import java.util.jar.Attributes
 import java.util.jar.Attributes.Name._
 import java.io.File
 
-class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
+class AkkaParent(info: ProjectInfo) extends DefaultProject(info) with IdeaProject {
 
   // ------------------------------------------------------------
   // project versions
@@ -401,7 +401,7 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
   def akkaArtifacts = descendents(info.projectPath / "dist", "*" + buildScalaVersion  + "-" + version + ".jar")
 
   // ------------------------------------------------------------
-  class AkkaDefaultProject(info: ProjectInfo, val deployPath: Path) extends DefaultProject(info) with DeployProject
+  class AkkaDefaultProject(info: ProjectInfo, val deployPath: Path) extends DefaultProject(info) with DeployProject with IdeaProject
 
   trait DeployProject extends DefaultProject {
     // defines where the deployTask copies jars to

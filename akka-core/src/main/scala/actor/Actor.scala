@@ -135,8 +135,9 @@ object Actor extends Logging {
    */
   def actor(body: Receive): ActorRef =
     actorOf(new Actor() {
-      override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
-      def receive(implicit self: Self): Receive = body
+      def receive(implicit self: Self): Receive = {
+        case Init => self.lifeCycle = Some(LifeCycle(Permanent))
+      } orElse body
     }).start
 
   /**
@@ -157,8 +158,9 @@ object Actor extends Logging {
    */
   def transactor(body: Receive): ActorRef =
     actorOf(new Transactor() {
-      override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
-      def receive(implicit self: Self): Receive = body
+      def receive(implicit self: Self): Receive = {
+        case Init => self.lifeCycle = Some(LifeCycle(Permanent))
+      } orElse body
     }).start
 
   /**
@@ -177,8 +179,9 @@ object Actor extends Logging {
    */
   def temporaryActor(body: Receive): ActorRef =
     actorOf(new Actor() {
-      override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
-      def receive(implicit self: Self) = body
+      def receive(implicit self: Self): Receive = {
+        case Init => self.lifeCycle = Some(LifeCycle(Temporary))
+      } orElse body
     }).start
 
   /**
@@ -202,9 +205,10 @@ object Actor extends Logging {
     def handler[A](body: => Unit) = new {
       def receive(handler: Receive) =
         actorOf(new Actor() {
-          override def init(implicit self: Self) = self.lifeCycle = Some(LifeCycle(Permanent))
           body
-          def receive(implicit self: Self) = handler
+          def receive(implicit self: Self) = {
+            case Init => self.lifeCycle = Some(LifeCycle(Permanent))
+          } orElse handler
         }).start
     }
     handler(body)
@@ -332,17 +336,12 @@ trait Actor extends Logging {
   // ==== INTERNAL IMPLEMENTATION DETAILS ====
   // =========================================
 
-  private[akka] def base(implicit self: Self): Receive = try {
+  private[akka] def base(implicit self: Self): Receive = {
     cancelReceiveTimeout
     systemLifeCycles orElse (self.hotswap getOrElse receive) orElse ignoreLifeCycles
-  } catch {
-    case e: NullPointerException => throw new IllegalActorStateException(
-      "The 'self' ActorRef reference for [" + getClass.getName + "] is NULL, error in the ActorRef initialization process.")
   }
-  
-  @volatile protected[akka] var timeoutActor: Option[ActorRef] = None
 
-  private val systemLifeCycles(self: Self): Receive = {
+  private[akka] def systemLifeCycles(implicit self: Self): Receive = {
     case HotSwap(code) => {
       self.hotswap = code
       checkReceiveTimeout
@@ -366,7 +365,7 @@ trait Actor extends Logging {
   }
 
   private[akka] def checkReceiveTimeout(implicit self : Self) = {
-    if((self.map(_.hotswap) orElse Option(receive)).map(_.isDefinedAt(ReceiveTimeout)).getOrElse(false)) {
+    if((self.flatMap(_.hotswap) orElse Option(receive)).map(_.isDefinedAt(ReceiveTimeout)).getOrElse(false)) {
       log.debug("Scheduling timeout for Actor [" + toString + "]")
       timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))
     }
