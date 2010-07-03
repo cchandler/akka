@@ -180,14 +180,13 @@ final class SupervisorActor private[akka] (
   handler: FaultHandlingStrategy,
   trapExceptions: List[Class[_ <: Throwable]]) extends Actor {
 
-  override def init(implicit self: Self) = {
-    self.trapExit = trapExceptions
-    self.faultHandler = Some(handler)
-  }
-  
-  override def shutdown(implicit self: Self): Unit = self.shutdownLinkedActors
-
   def receive(implicit self: Self) = {
+    case Init => {
+      self.trapExit = trapExceptions
+      self.faultHandler = Some(handler)
+    }
+    case Shutdown => self.shutdownLinkedActors
+    case _:LifeCycleMessage => //Ignore the other lifecyclemessages
     case unknown => throw new SupervisorException(
       "SupervisorActor can not respond to messages. Unknown message [" + unknown + "]")
   }

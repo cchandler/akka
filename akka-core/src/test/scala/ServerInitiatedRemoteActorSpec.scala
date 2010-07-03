@@ -20,7 +20,7 @@ object ServerInitiatedRemoteActorSpec {
   }
   class RemoteActorSpecActorUnidirectional extends Actor {
 
-    def receive = {
+    def receive(implicit self: Self) = {
       case "OneWay" =>
         RemoteActorSpecActorUnidirectional.latch.countDown
     }
@@ -28,7 +28,7 @@ object ServerInitiatedRemoteActorSpec {
 
   class RemoteActorSpecActorBidirectional extends Actor {
 
-    def receive = {
+    def receive(implicit self: Self) = {
       case "Hello" =>
         self.reply("World")
       case "Failure" =>
@@ -41,7 +41,7 @@ object ServerInitiatedRemoteActorSpec {
   }
   class RemoteActorSpecActorAsyncSender extends Actor {
 
-    def receive = {
+    def receive(implicit self: Self) = {
       case Send(actor: ActorRef) =>
         actor ! "Hello"
       case "World" =>

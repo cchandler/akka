@@ -9,9 +9,8 @@ import Actor._
 
 object ActorFireForgetRequestReplySpec {
   class ReplyActor extends Actor {
-    self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
-
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
       case "Send" =>
         self.reply("Reply")
       case "SendImplicit" =>
@@ -20,9 +19,8 @@ object ActorFireForgetRequestReplySpec {
   }
 
   class SenderActor(replyActor: ActorRef) extends Actor {
-    self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
-
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
       case "Init" => replyActor ! "Send"
       case "Reply" => {
         state.s = "Reply"

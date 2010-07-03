@@ -31,7 +31,6 @@ import TransactorSpec._
 
 class StatefulTransactor(expectedInvocationCount: Int) extends Transactor {
   def this() = this(0)
-  self.timeout = 5000
 
   val notifier = new CountDownLatch(expectedInvocationCount)
 
@@ -39,7 +38,8 @@ class StatefulTransactor(expectedInvocationCount: Int) extends Transactor {
   private lazy val vectorState = TransactionalVector[String]()
   private lazy val refState = Ref[String]()
 
-  def receive = {
+  def receive(implicit self: Self) = {
+    case Init => self.timeout = 5000
     case GetNotifier =>
       self.reply(notifier)
     case GetMapState(key) =>
@@ -103,7 +103,7 @@ class StatefulTransactor(expectedInvocationCount: Int) extends Transactor {
 @serializable
 class FailerTransactor extends Transactor {
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Failure" =>
       throw new RuntimeException("Expected exception; to test fault-tolerance")
   }

@@ -7,7 +7,7 @@ package se.scalablesolutions.akka.remote
 import se.scalablesolutions.akka.config.Config.config
 import se.scalablesolutions.akka.config.ScalaConfig._
 import se.scalablesolutions.akka.serialization.Serializer
-import se.scalablesolutions.akka.actor.{Supervisor, SupervisorFactory, Actor, ActorRef, ActorRegistry}
+import se.scalablesolutions.akka.actor._
 import se.scalablesolutions.akka.util.Logging
 import scala.collection.immutable.{Map, HashMap}
 
@@ -81,15 +81,17 @@ abstract class BasicClusterActor extends ClusterActor with Logging {
   @volatile private var local: Node = Node(Nil)
   @volatile private var remotes: Map[ADDR_T, Node] = Map()
 
-  override def init(implicit self: Self) = {
+  def init(implicit self: Self) = {
     remotes = new HashMap[ADDR_T, Node]
   }
 
-  override def shutdown(implicit self: Self) = {
+  def shutdown(implicit self: Self) = {
     remotes = Map()
   }
 
   def receive(implicit self: Self) = {
+    case Init => init
+    case Shutdown => shutdown
     case v: View[ADDR_T] => {
       // Not present in the cluster anymore = presumably zombies
       // Nodes we have no prior knowledge existed = unknowns

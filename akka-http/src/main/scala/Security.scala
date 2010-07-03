@@ -199,7 +199,7 @@ trait AuthenticationActor[C <: Credentials] extends Actor {
     }
   }
 
-  def receive = authenticate
+  def receive(implicit self: Self) = authenticate
 
   //returns the string value of the "Authorization"-header of the request
   def auth(r: Req) = r.getHeaderValue("Authorization")
@@ -265,7 +265,7 @@ trait DigestAuthenticationActor extends AuthenticationActor[DigestCredentials] w
   Scheduler.schedule(self, InvalidateNonces, noncePurgeInterval, noncePurgeInterval, TimeUnit.MILLISECONDS)
 
   //authenticate or invalidate nonces
-  override def receive = authenticate orElse invalidateNonces
+  override def receive(implicit self: Self) = authenticate orElse invalidateNonces
 
   override def unauthorized: Response = {
     val nonce = randomString(64)

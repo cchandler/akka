@@ -5,10 +5,10 @@ import org.scalatest.junit.JUnitSuite
 
 import org.junit.Test
 
-import se.scalablesolutions.akka.dispatch.Dispatchers
 import Actor._
 
 import java.util.concurrent.{TimeUnit, CountDownLatch}
+import se.scalablesolutions.akka.dispatch.{MessageDispatcher, Dispatchers}
 
 object ExecutorBasedEventDrivenWorkStealingDispatcherSpec {
   val delayableActorDispatcher = Dispatchers.newExecutorBasedEventDrivenWorkStealingDispatcher("pooled-dispatcher")
@@ -16,11 +16,13 @@ object ExecutorBasedEventDrivenWorkStealingDispatcherSpec {
   val parentActorDispatcher = Dispatchers.newExecutorBasedEventDrivenWorkStealingDispatcher("pooled-dispatcher")
 
   class DelayableActor(name: String, delay: Int, finishedCounter: CountDownLatch) extends Actor {
-    self.dispatcher = delayableActorDispatcher
-    var invocationCount = 0
-    self.id = name
 
-    def receive = {
+    var invocationCount = 0
+
+    def receive(implicit self: Self) = {
+      case Init =>
+        self.dispatcher = delayableActorDispatcher
+        self.id = name
       case x: Int => {
         Thread.sleep(delay)
         invocationCount += 1
@@ -29,23 +31,17 @@ object ExecutorBasedEventDrivenWorkStealingDispatcherSpec {
     }
   }
 
-  class FirstActor extends Actor {
-    self.dispatcher = sharedActorDispatcher
-    def receive = {case _ => {}}
+  abstract class WorkStealActor(dispatcher: MessageDispatcher) extends Actor {
+    def receive(implicit self: Self) = {
+      case Init => self.dispatcher = dispatcher
+      case _ =>
+    }
   }
 
-  class SecondActor extends Actor {
-    self.dispatcher = sharedActorDispatcher
-    def receive = {case _ => {}}
-  }
-
-  class ParentActor extends Actor {
-    self.dispatcher = parentActorDispatcher
-    def receive = {case _ => {}}
-  }
-
-  class ChildActor extends ParentActor {
-  }
+  class FirstActor extends WorkStealActor(sharedActorDispatcher)
+  class SecondActor extends WorkStealActor(sharedActorDispatcher)
+  class ParentActor extends WorkStealActor(parentActorDispatcher)
+  class ChildActor extends ParentActor
 }
 
 /**

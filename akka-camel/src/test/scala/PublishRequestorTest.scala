@@ -22,7 +22,7 @@ class PublishRequestorTest extends JUnitSuite {
     requestor ! PublishRequestorInit(publisher)
     consumer = actorOf(new Actor with Consumer {
       def endpointUri = "mock:test"
-      protected def receive = null
+      protected def receive(implicit self: Self) = null
     }).start
 
   }

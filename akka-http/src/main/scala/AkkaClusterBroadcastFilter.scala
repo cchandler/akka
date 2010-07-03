@@ -43,7 +43,7 @@ class AkkaClusterBroadcastFilter extends Actor with ClusterBroadcastFilter {
     }
   })
 
-  def receive = {
+  def receive(implicit self: Self) = {
     //Only handle messages intended for this particular instance
     case b @ ClusterCometBroadcast(c, _) if (c == clusterName) && (broadcaster ne null) => broadcaster broadcast b
     case _ =>

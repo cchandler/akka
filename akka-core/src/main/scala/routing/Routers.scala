@@ -33,5 +33,5 @@ trait LoadBalancer extends Dispatcher { self: Actor =>
 
   protected def routes = { case x if seq.hasNext => seq.next }
 
-  override def isDefinedAt(msg: Any) = seq.exists( _.isDefinedAt(msg) )
+  override def isDefinedAt(msg: Any)(implicit self : Self) = seq.exists( _.isDefinedAt(msg) )
 }

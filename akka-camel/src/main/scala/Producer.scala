@@ -120,7 +120,7 @@ trait Producer { this: Actor =>
 
   /**
    * Default implementation for Actor.receive. Implementors may choose to
-   * <code>def receive = produce</code>. This partial function calls one of
+   * <code>def receive(implicit self: Self) = produce</code>. This partial function calls one of
    * the protected produce methods depending on the return values of
    * <code>oneway</code> and <code>async</code>.
    */
@@ -136,7 +136,7 @@ trait Producer { this: Actor =>
   /**
    * Default implementation of Actor.receive
    */
-  protected def receive = produce
+  protected def receive(implicit self: Self) = produce
 
   /**
    * Creates a new in-only Exchange.

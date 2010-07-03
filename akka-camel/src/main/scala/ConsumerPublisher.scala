@@ -67,7 +67,7 @@ private[camel] class ConsumerPublisher extends Actor {
   /**
    *  Adds a route to the actor identified by a Publish message to the global CamelContext.
    */
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case r: ConsumerRegistered => {
       handleConsumerRegistered(r)
       latch.countDown // needed for testing only.
@@ -164,7 +164,7 @@ private[camel] class PublishRequestor extends Actor {
   private val events = ListBuffer[ConsumerEvent]()
   private var publisher: Option[ActorRef] = None
 
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case ActorRegistered(actor) =>
       for (event <- ConsumerRegistered.forConsumer(actor)) deliverCurrentEvent(event)
     case ActorUnregistered(actor) =>

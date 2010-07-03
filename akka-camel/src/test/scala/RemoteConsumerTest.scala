@@ -81,7 +81,7 @@ object RemoteConsumerTest {
   class RemoteConsumer extends RemoteActor(host, port) with Consumer {
     def endpointUri = "direct:remote-actor"
 
-    protected def receive = {
+    protected def receive(implicit self: Self) = {
       case "init"     => self.reply("done")
       case m: Message => self.reply("remote actor: %s" format m.body)
     }

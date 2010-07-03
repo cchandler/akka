@@ -124,14 +124,14 @@ object CamelServiceFeatureTest {
 
   class TestConsumer(uri: String) extends Actor with Consumer {
     def endpointUri = uri
-    protected def receive = {
+    protected def receive(implicit self: Self) = {
       case msg: Message => self.reply("received %s" format msg.body)
     }
   }
 
   class TestActor extends Actor {
     self.id = "custom-actor-id"
-    protected def receive = {
+    protected def receive(implicit self: Self) = {
       case msg: Message => self.reply("received %s" format msg.body)
     }
   }

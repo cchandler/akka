@@ -7,7 +7,7 @@ package se.scalablesolutions.akka.dataflow
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ConcurrentLinkedQueue, LinkedBlockingQueue}
 
-import se.scalablesolutions.akka.actor.{Actor, ActorRef}
+import se.scalablesolutions.akka.actor._
 import se.scalablesolutions.akka.actor.Actor._
 import se.scalablesolutions.akka.dispatch.CompletableFuture
 
@@ -64,8 +64,8 @@ import se.scalablesolutions.akka.dispatch.CompletableFuture
     private val blockedReaders = new ConcurrentLinkedQueue[ActorRef]
 
     private class In[T <: Any](dataFlow: DataFlowVariable[T]) extends Actor {
-      override def init(implicit self: Self) = self.timeout = TIME_OUT
       def receive(implicit self: Self) = {
+        case Init => self.timeout = TIME_OUT
         case Set(v) =>
           if (dataFlow.value.compareAndSet(None, Some(v.asInstanceOf[T]))) {
             val iterator = dataFlow.blockedReaders.iterator
@@ -78,9 +78,9 @@ import se.scalablesolutions.akka.dispatch.CompletableFuture
     }
 
     private class Out[T <: Any](dataFlow: DataFlowVariable[T]) extends Actor {
-      override def init(implicit self: Self) = self.timeout = TIME_OUT
       private var readerFuture: Option[CompletableFuture[T]] = None
       def receive(implicit self: Self) = {
+        case Init => self.timeout = TIME_OUT
         case Get =>
           val ref = dataFlow.value.get
           if (ref.isDefined) self.reply(ref.get)

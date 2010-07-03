@@ -136,7 +136,7 @@ class SecureTickActor extends Transactor with Logging {
   private val KEY = "COUNTER"
   private var hasStartedTicking = false
   private lazy val storage = TransactionalMap[String, Integer]()
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Tick" => if (hasStartedTicking) {
       val counter = storage.get(KEY).get.intValue
       storage.put(KEY, counter + 1)

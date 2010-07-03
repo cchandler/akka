@@ -13,7 +13,7 @@ case class Publish(channel: String, msg: String) extends Msg
 class Subscriber(client: RedisClient) extends Actor {
   var callback: PubSubMessage => Any = { m => }
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case Subscribe(channels) =>
       client.subscribe(channels.head, channels.tail: _*)(callback)
       self.reply(true)
@@ -33,7 +33,7 @@ class Subscriber(client: RedisClient) extends Actor {
 }
 
 class Publisher(client: RedisClient) extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case Publish(channel, message) =>
       client.publish(channel, message)
       self.reply(true)

@@ -24,14 +24,14 @@ class RoutingSpec extends junit.framework.TestCase with Suite with MustMatchers 
     val (testMsg1,testMsg2,testMsg3,testMsg4) = ("test1","test2","test3","test4")
     val targetOk = new AtomicInteger(0)
     val t1 = actorOf( new Actor() {
-          def receive = {
+          def receive(implicit self: Self) = {
         case `testMsg1` => self.reply(3)
         case `testMsg2` => self.reply(7)
       }
     } ).start
 
     val t2 = actorOf( new Actor() {
-          def receive = {
+          def receive(implicit self: Self) = {
         case `testMsg3` => self.reply(11)
       }
     }).start
@@ -98,7 +98,7 @@ class RoutingSpec extends junit.framework.TestCase with Suite with MustMatchers 
     val latch = new CountDownLatch(2)
     val num = new AtomicInteger(0)
     val i = actorOf(new Actor with Listeners {
-      def receive = listenerManagement orElse {
+      def receive(implicit self: Self) = listenerManagement orElse {
         case "foo" =>  gossip("bar")
       }
     })
@@ -133,28 +133,28 @@ class RoutingSpec extends junit.framework.TestCase with Suite with MustMatchers 
         val (testMsg1,testMsg2,testMsg3,testMsg4) = ("test1","test2","test3","test4")
 
     val t1 = actorOf( new Actor() {
-      def receive = {
+      def receive(implicit self: Self) = {
         case `testMsg1` => self.reply(3)
         case `testMsg2` => self.reply(7)
       }
     } ).start
 
     val t2 = actorOf( new Actor() {
-      def receive = {
+      def receive(implicit self: Self) = {
         case `testMsg1` => self.reply(3)
         case `testMsg2` => self.reply(7)
       }
     } ).start
 
     val t3 = actorOf( new Actor() {
-      def receive = {
+      def receive(implicit self: Self) = {
         case `testMsg1` => self.reply(3)
         case `testMsg2` => self.reply(7)
       }
     } ).start
 
     val t4 = actorOf( new Actor() {
-      def receive = {
+      def receive(implicit self: Self) = {
         case `testMsg1` => self.reply(3)
         case `testMsg2` => self.reply(7)
       }

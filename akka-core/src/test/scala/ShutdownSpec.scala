@@ -7,7 +7,7 @@ import Actor._
 object ActorShutdownRunner {
   def main(args: Array[String]) {
     class MyActor extends Actor {
-      def receive = {
+      def receive(implicit self: Self) = {
         case "test" => println("received test")
         case m@_ => println("received unknown message " + m)
       }

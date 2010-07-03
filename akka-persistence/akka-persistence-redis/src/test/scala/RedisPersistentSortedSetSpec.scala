@@ -49,7 +49,7 @@ class SortedSetActor extends Transactor {
   self.timeout = 100000
   private lazy val hackers = RedisStorage.newSortedSet
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case ADD(h) =>
       hackers.+(h.name.getBytes, h.zscore)
       self.reply(true)

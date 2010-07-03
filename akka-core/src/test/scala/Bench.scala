@@ -28,10 +28,10 @@ object Chameneos {
 
   class Chameneo(var mall: ActorRef, var colour: Colour, cid: Int) extends Actor {
      var meetings = 0
-     self.start
-     mall ! Meet(self, colour)
-
-     def receive = {
+     def receive(implicit self: Self) = {
+       case Init =>
+         self.start
+         mall ! Meet(self, colour)
        case Meet(from, otherColour) =>
          colour = complement(otherColour)
          meetings = meetings +1
@@ -78,11 +78,9 @@ object Chameneos {
     var sumMeetings = 0
     var numFaded = 0
 
-    override def init = {
-      for (i <- 0 until numChameneos) actorOf(new Chameneo(self, colours(i % 3), i))
-    }
-
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init =>
+        for (i <- 0 until numChameneos) actorOf(new Chameneo(self, colours(i % 3), i))
       case MeetingCount(i) =>
         numFaded += 1
         sumMeetings += i

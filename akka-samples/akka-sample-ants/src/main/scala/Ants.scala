@@ -129,7 +129,7 @@ object Util {
 
 trait WorldActor extends Actor {
   def act
-  def receive = { case Ping => act }
+  def receive(implicit self: Self) = { case Ping => act }
 }
 
 class AntActor(initLoc: (Int, Int)) extends WorldActor {

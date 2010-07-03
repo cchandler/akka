@@ -78,7 +78,7 @@ class Session(user: String, storage: ActorRef) extends Actor {
 
   log.info("New session for user [%s] has been created at [%s]", user, loginTime)
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg @ ChatMessage(from, message) =>
       userLog ::= message
       storage ! msg
@@ -104,7 +104,7 @@ class RedisChatStorage extends ChatStorage {
 
   log.info("Redis-based chat storage is starting up...")
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg @ ChatMessage(from, message) =>
       log.debug("New chat message [%s]", message)
       atomic { chatLog + message.getBytes("UTF-8") }
@@ -178,7 +178,7 @@ trait ChatServer extends Actor {
   log.info("Chat server is starting up...")
 
   // actor message handler
-  def receive = sessionManagement orElse chatManagement
+  def receive(implicit self: Self) = sessionManagement orElse chatManagement
 
   // abstract methods to be defined somewhere else
   protected def chatManagement: Receive

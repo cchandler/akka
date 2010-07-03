@@ -28,7 +28,9 @@ object Log {
 }
 
 @serializable class RemotePingPong1Actor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
+    case PostRestart(cause) =>
+      Log.messageLog.put(cause.getMessage)
     case BinaryString("Ping") =>
       Log.messageLog.put("ping")
       self.reply("pong")
@@ -39,37 +41,29 @@ object Log {
     case BinaryString("Die") =>
       throw new RuntimeException("Expected exception; to test fault-tolerance")
   }
-
-  override def postRestart(reason: Throwable) {
-    Log.messageLog.put(reason.getMessage)
-  }
 }
 
 @serializable class RemotePingPong2Actor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
+    case PostRestart(cause) =>
+      Log.messageLog.put(cause.getMessage)
     case BinaryString("Ping") =>
       Log.messageLog.put("ping")
       self.reply("pong")
     case BinaryString("Die") =>
       throw new RuntimeException("Expected exception; to test fault-tolerance")
-  }
-
-  override def postRestart(reason: Throwable) {
-    Log.messageLog.put(reason.getMessage)
   }
 }
 
 @serializable class RemotePingPong3Actor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
+    case PostRestart(cause) =>
+      Log.messageLog.put(cause.getMessage)
     case BinaryString("Ping") =>
       Log.messageLog.put("ping")
       self.reply("pong")
     case BinaryString("Die") =>
       throw new RuntimeException("Expected exception; to test fault-tolerance")
-  }
-
-  override def postRestart(reason: Throwable) {
-    Log.messageLog.put(reason.getMessage)
   }
 }
 

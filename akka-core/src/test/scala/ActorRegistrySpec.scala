@@ -7,8 +7,8 @@ import Actor._
 object ActorRegistrySpec {
   var record = ""
   class TestActor extends Actor {
-    self.id = "MyID"
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.id = "MyID"
       case "ping" =>
         record = "pong" + record
         self.reply("got ping")
@@ -16,8 +16,8 @@ object ActorRegistrySpec {
   }
 
   class TestActor2 extends Actor {
-    self.id = "MyID2"
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.id = "MyID2"
       case "ping" =>
         record = "pong" + record
         self.reply("got ping")

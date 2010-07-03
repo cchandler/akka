@@ -27,7 +27,8 @@ object ProtobufActorMessageSerializationSpec {
   var server: RemoteServer = null
 
   class RemoteActorSpecActorBidirectional extends Actor {
-    def receive = {
+    def receive(implicit self: Self) = {
+      case _:LifeCycleMessage =>
       case pojo: ProtobufPOJO =>
         val id = pojo.getId
         self.reply(id + 1)

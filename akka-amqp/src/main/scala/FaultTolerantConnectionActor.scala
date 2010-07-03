@@ -29,7 +29,7 @@ private[amqp] class FaultTolerantConnectionActor(connectionParameters: Connectio
 
   var connection: Option[Connection] = None
 
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case Connect => connect
     case ChannelRequest => {
       connection match {

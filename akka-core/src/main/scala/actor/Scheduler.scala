@@ -81,7 +81,7 @@ private class ScheduleActor(future: ScheduledFuture[AnyRef]) extends Actor with 
   def receive(implicit self: Self) = {
     case Scheduler.UnSchedule =>
       future.cancel(true)
-      self.stop
+      self.get.stop
   }
 }
 

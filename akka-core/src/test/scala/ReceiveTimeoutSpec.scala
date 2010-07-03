@@ -14,9 +14,8 @@ class ReceiveTimeoutSpec extends JUnitSuite {
     val timeoutLatch = new StandardLatch
 
     val timeoutActor = actorOf(new Actor {
-      self.receiveTimeout = 500
-
-      protected def receive = {
+      protected def receive(implicit self: Self) = {
+        case Init => self.receiveTimeout = 500
         case ReceiveTimeout => timeoutLatch.open
       }
     }).start
@@ -28,9 +27,8 @@ class ReceiveTimeoutSpec extends JUnitSuite {
     val timeoutLatch = new StandardLatch
 
     val timeoutActor = actorOf(new Actor {
-      self.receiveTimeout = 500
-
-      protected def receive = {
+      protected def receive(implicit self: Self) = {
+        case Init => self.receiveTimeout = 500
         case ReceiveTimeout => timeoutLatch.open
       }
     }).start
@@ -51,9 +49,8 @@ class ReceiveTimeoutSpec extends JUnitSuite {
     val timeoutLatch = new StandardLatch
     case object Tick
     val timeoutActor = actorOf(new Actor {
-      self.receiveTimeout = 500
-
-      protected def receive = {
+      protected def receive(implicit self: Self) = {
+        case Init => self.receiveTimeout = 500
         case Tick => ()
         case ReceiveTimeout => timeoutLatch.open
       }

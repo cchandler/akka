@@ -13,7 +13,7 @@ object ForwardActorSpec {
 
   class ReceiverActor extends Actor {
     val latch = new CountDownLatch(1)
-    def receive = {
+    def receive(implicit self: Self) = {
       case "SendBang" => {
         ForwardState.sender = self.sender
         latch.countDown
@@ -26,7 +26,7 @@ object ForwardActorSpec {
   class ForwardActor extends Actor {
     val receiverActor = actorOf[ReceiverActor]
     receiverActor.start
-    def receive = {
+    def receive(implicit self: Self) = {
       case "SendBang" => receiverActor.forward("SendBang")
       case "SendBangBang" => receiverActor.forward("SendBangBang")
     }
@@ -36,7 +36,7 @@ object ForwardActorSpec {
     val forwardActor = actorOf[ForwardActor]
     forwardActor.start
     forwardActor ! "SendBang"
-    def receive = {
+    def receive(implicit self: Self) = {
       case _ => {}
     }
   }
@@ -49,7 +49,7 @@ object ForwardActorSpec {
       case Some(_) => latch.countDown
       case None => {}
     }
-    def receive = {
+    def receive(implicit self: Self) = {
       case _ => {}
     }
   }

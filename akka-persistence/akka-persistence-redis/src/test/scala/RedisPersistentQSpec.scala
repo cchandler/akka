@@ -21,7 +21,7 @@ case object SZ
 class QueueActor extends Transactor {
   private lazy val accounts = RedisStorage.newQueue
 
-  def receive = {
+  def receive(implicit self: Self) = {
     // enqueue
     case NQ(accountNo) =>
       accounts.enqueue(accountNo.getBytes)

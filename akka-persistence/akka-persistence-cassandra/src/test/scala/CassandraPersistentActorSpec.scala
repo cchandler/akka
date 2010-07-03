@@ -32,7 +32,7 @@ class CassandraPersistentActor extends Transactor {
   private lazy val vectorState = CassandraStorage.newVector
   private lazy val refState = CassandraStorage.newRef
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case GetMapState(key) =>
       self.reply(mapState.get(key.getBytes("UTF-8")).get)
     case GetVectorSize =>
@@ -63,7 +63,7 @@ class CassandraPersistentActor extends Transactor {
 }
 
 @serializable class PersistentFailerActor extends Transactor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Failure" =>
       throw new RuntimeException("Expected exception; to test fault-tolerance")
   }

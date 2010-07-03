@@ -16,9 +16,9 @@ import Actor._
 /*
 class ThreadBasedDispatcherSpec extends JUnitSuite {
   private var threadingIssueDetected: AtomicBoolean = null
-  val key1 = actorOf(new Actor { def receive = { case _ => {}} })
-  val key2 = actorOf(new Actor { def receive = { case _ => {}} })
-  val key3 = actorOf(new Actor { def receive = { case _ => {}} })
+  val key1 = actorOf(new Actor { def receive(implicit self: Self) = { case _ => {}} })
+  val key2 = actorOf(new Actor { def receive(implicit self: Self) = { case _ => {}} })
+  val key3 = actorOf(new Actor { def receive(implicit self: Self) = { case _ => {}} })
 
   class TestMessageHandle(handleLatch: CountDownLatch) extends MessageInvoker {
     val guardLock: Lock = new ReentrantLock

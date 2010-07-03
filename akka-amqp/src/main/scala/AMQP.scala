@@ -4,13 +4,13 @@
 
 package se.scalablesolutions.akka.amqp
 
-import se.scalablesolutions.akka.actor.{Actor, ActorRef}
 import se.scalablesolutions.akka.actor.Actor._
 import se.scalablesolutions.akka.util.Logging
 
 import se.scalablesolutions.akka.config.OneForOneStrategy
 import com.rabbitmq.client.{ReturnListener, ShutdownListener, ConnectionFactory}
 import java.lang.IllegalArgumentException
+import se.scalablesolutions.akka.actor.{Init, Actor, ActorRef}
 
 /**
  * AMQP Actor API. Implements Connection, Producer and Consumer materialized as Actors.
@@ -83,12 +83,10 @@ object AMQP {
 
   class AMQPSupervisor extends Logging {
     class AMQPSupervisorActor extends Actor {
-      import self._
-
-      faultHandler = Some(OneForOneStrategy(5, 5000))
-      trapExit = List(classOf[Throwable])
-
-      def receive = {
+      def receive(implicit self: Self) = {
+        case Init =>
+          self.faultHandler = Some(OneForOneStrategy(5, 5000))
+          self.trapExit = List(classOf[Throwable])
         case _ => {} // ignore all messages
       }
     }

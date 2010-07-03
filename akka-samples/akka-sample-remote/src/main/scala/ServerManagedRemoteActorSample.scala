@@ -10,7 +10,7 @@ import se.scalablesolutions.akka.remote.{RemoteClient, RemoteNode}
 import se.scalablesolutions.akka.util.Logging
 
 class HelloWorldActor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Hello" =>
       log.info("Received 'Hello'")
       self.reply("World")

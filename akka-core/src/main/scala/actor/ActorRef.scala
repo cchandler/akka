@@ -235,7 +235,7 @@ trait ActorRef extends TransactionManagement {
   /**
    * Is the actor able to handle the message passed in as arguments?
    */
-  def isDefinedAt(message: Any): Boolean = actor.base(Some(this)).isDefinedAt(message)
+  def isDefinedAt(message: Any): Boolean = actor.isDefinedAt(message)(Some(this))
   
   /**
    * Only for internal use. UUID is effectively final.
@@ -602,9 +602,6 @@ sealed class LocalActorRef private[akka](
       lifeCycle = __lifeCycle
       _supervisor = __supervisor
       hotswap = __hotswap
-      actorSelfFields._1.set(actor, this)
-      actorSelfFields._2.set(actor, Some(this))
-      actorSelfFields._3.set(actor, Some(this))
       start
       __messages.foreach(message => this ! MessageSerializer.deserialize(message.getMessage))
       ActorRegistry.register(this)
@@ -618,14 +615,7 @@ sealed class LocalActorRef private[akka](
   protected[akka] val _mailbox: Deque[MessageInvocation] = new ConcurrentLinkedDeque[MessageInvocation]
   protected[this] val actorInstance = guard.withGuard { new AtomicReference[Actor](newActor) }
 
-  @volatile private var isInInitialization = false
-  @volatile private var runActorInitialization = false
-
-  // Needed to be able to null out the 'val self: ActorRef' member variables to make the Actor
-  // instance elegible for garbage collection
-  private val actorSelfFields = findActorSelfField(actor.getClass)
-
-  if (runActorInitialization && !isDeserialized) initializeActorInstance
+  if (!isDeserialized) initializeActorInstance
 
   /**
    * Returns the mailbox.
@@ -725,8 +715,6 @@ sealed class LocalActorRef private[akka](
         _transactionFactory = Some(TransactionFactory(_transactionConfig, id))
       }
       _isRunning = true
-      if (!isInInitialization) initializeActorInstance
-      else runActorInitialization = true
     }
     this
   }
@@ -740,12 +728,11 @@ sealed class LocalActorRef private[akka](
       _transactionFactory = None
       _isRunning = false
       _isShutDown = true
-      actor.shutdown(Some(this))
+      actor.base(Some(this)).apply(Shutdown)
       ActorRegistry.unregister(this)
       remoteAddress.foreach(address => RemoteClient.unregister(
         address.getHostName, address.getPort, uuid))
       RemoteNode.unregister(this)
-      nullOutActorRefReferencesFor(actorInstance.get)
     } else if (isBeingRestarted) throw new ActorKilledException("Actor [" + toString + "] is being restarted.")
   }
 
@@ -892,8 +879,7 @@ sealed class LocalActorRef private[akka](
   }
 
   private[this] def newActor: Actor = {
-    isInInitialization = true
-    //Actor.actorRefInCreation.value = Some(this)
+
     val actor = actorFactory match {
       case Left(Some(clazz)) =>
         try {
@@ -913,8 +899,7 @@ sealed class LocalActorRef private[akka](
     }
     if (actor eq null) throw new ActorInitializationException(
       "Actor instance passed to ActorRef can not be 'null'")
-    
-   isInInitialization = false
+
     actor
   }
 
@@ -1071,15 +1056,15 @@ sealed class LocalActorRef private[akka](
               restartLinkedActors(reason)
               Actor.log.debug("Restarting linked actors for actor [%s].", id)
               Actor.log.debug("Invoking 'preRestart' for failed actor instance [%s].", id)
-              failedActor.preRestart(reason)
-              nullOutActorRefReferencesFor(failedActor)
+              failedActor.base.apply(PreRestart(reason)) //Why preRestart on the failed actor and post restart on the new one?
               val freshActor = newActor
               freshActor.synchronized {
-                freshActor.init
-                freshActor.initTransactionalState
+                val handler = freshActor.base
+                handler(Init)
+                handler(InitTransactionalState)
                 actorInstance.set(freshActor)
                 Actor.log.debug("Invoking 'postRestart' for new actor instance [%s].", id)
-                freshActor.postRestart(reason)
+                handler(PostRestart(reason))
               }
               _isBeingRestarted = false
             case Temporary => shutDownTemporaryActor(this)
@@ -1135,37 +1120,18 @@ sealed class LocalActorRef private[akka](
   protected[akka] def linkedActorsAsList: List[ActorRef] =
     linkedActors.values.toArray.toList.asInstanceOf[List[ActorRef]]
 
-  private def nullOutActorRefReferencesFor(actor: Actor) = {
-    actorSelfFields._1.set(actor, null)
-    actorSelfFields._2.set(actor, null)
-    actorSelfFields._3.set(actor, null)
-  }
-
-  private def findActorSelfField(clazz: Class[_]): Tuple3[Field, Field, Field] = {
-    try {
-      val selfField =       clazz.getDeclaredField("self")
-      val optionSelfField = clazz.getDeclaredField("optionSelf")
-      val someSelfField =   clazz.getDeclaredField("someSelf")
-      selfField.setAccessible(true)
-      optionSelfField.setAccessible(true)
-      someSelfField.setAccessible(true)
-      (selfField, optionSelfField, someSelfField)
-    } catch {
-      case e: NoSuchFieldException =>
-        val parent = clazz.getSuperclass
-        if (parent != null) findActorSelfField(parent)
-        else throw new IllegalActorStateException(toString + " is not an Actor since it have not mixed in the 'Actor' trait")
-    }
-  }
-
   private def initializeActorInstance = {
-    actor.init(Some(this)) // run actor init and initTransactionalState callbacks
-    actor.initTransactionalState
-    Actor.log.debug("[%s] has started", toString)
-    ActorRegistry.register(this)
-    if (id == "N/A") id = actorClass.getName // if no name set, then use default name (class name)
-    clearTransactionSet // clear transaction set that might have been created if atomic block has been used within the Actor constructor body
-    actor.checkReceiveTimeout
+    actor.synchronized{
+      implicit val self : Actor.Self = Some(this)
+      val handler = actor.base
+      handler(Init)
+      handler(InitTransactionalState)
+      Actor.log.debug("[%s] has started", toString)
+      ActorRegistry.register(this)
+      if (id == "N/A") id = actorClass.getName // if no name set, then use default name (class name)
+      clearTransactionSet // clear transaction set that might have been created if atomic block has been used within the Actor constructor body
+      actor.checkReceiveTimeout
+    }
   }
 
   private def serializeMessage(message: AnyRef): AnyRef = if (Actor.SERIALIZE_MESSAGES) {

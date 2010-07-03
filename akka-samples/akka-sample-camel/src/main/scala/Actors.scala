@@ -11,7 +11,7 @@ import se.scalablesolutions.akka.util.Logging
 class RemoteActor1 extends RemoteActor("localhost", 7777) with Consumer {
   def endpointUri = "jetty:http://localhost:6644/camel/remote-actor-1"
 
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case msg: Message => self.reply(Message("hello %s" format msg.bodyAs[String], Map("sender" -> "remote1")))
   }
 }
@@ -22,7 +22,7 @@ class RemoteActor1 extends RemoteActor("localhost", 7777) with Consumer {
 class RemoteActor2 extends Actor with Consumer {
   def endpointUri = "jetty:http://localhost:6644/camel/remote-actor-2"
 
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case msg: Message => self.reply(Message("hello %s" format msg.bodyAs[String], Map("sender" -> "remote2")))
   }
 }
@@ -37,14 +37,14 @@ class Producer1 extends Actor with Producer {
 class Consumer1 extends Actor with Consumer with Logging {
   def endpointUri = "file:data/input/actor"
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg: Message => log.info("received %s" format msg.bodyAs[String])
   }
 }
 
 @consume("jetty:http://0.0.0.0:8877/camel/default")
 class Consumer2 extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg: Message => self.reply("Hello %s" format msg.bodyAs[String])
   }
 }
@@ -52,7 +52,7 @@ class Consumer2 extends Actor {
 class Consumer3(transformer: ActorRef) extends Actor with Consumer {
   def endpointUri = "jetty:http://0.0.0.0:8877/camel/welcome"
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg: Message => transformer.forward(msg.setBodyAs[String])
   }
 }
@@ -60,7 +60,7 @@ class Consumer3(transformer: ActorRef) extends Actor with Consumer {
 class Consumer4 extends Actor with Consumer with Logging {
   def endpointUri = "jetty:http://0.0.0.0:8877/camel/stop"
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg: Message => msg.bodyAs[String] match {
       case "stop" => {
         self.reply("Consumer4 stopped")
@@ -74,7 +74,7 @@ class Consumer4 extends Actor with Consumer with Logging {
 class Consumer5 extends Actor with Consumer with Logging {
   def endpointUri = "jetty:http://0.0.0.0:8877/camel/start"
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case _ => {
       Actor.actorOf[Consumer4].start
       self.reply("Consumer4 started")
@@ -83,7 +83,7 @@ class Consumer5 extends Actor with Consumer with Logging {
 }
 
 class Transformer(producer: ActorRef) extends Actor {
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case msg: Message => producer.forward(msg.transformBody[String]("- %s -" format _))
   }
 }
@@ -91,7 +91,7 @@ class Transformer(producer: ActorRef) extends Actor {
 class Subscriber(name:String, uri: String) extends Actor with Consumer with Logging {
   def endpointUri = uri
 
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case msg: Message => log.info("%s received: %s" format (name, msg.body))
   }
 }
@@ -105,7 +105,7 @@ class Publisher(name: String, uri: String) extends Actor with Producer {
 class PublisherBridge(uri: String, publisher: ActorRef) extends Actor with Consumer {
   def endpointUri = uri
 
-  protected def receive = {
+  protected def receive(implicit self: Self) = {
     case msg: Message => {
       publisher ! msg.bodyAs[String]
       self.reply("message published")

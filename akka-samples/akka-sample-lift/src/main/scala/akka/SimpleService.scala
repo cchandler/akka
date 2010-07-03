@@ -28,7 +28,7 @@ class SimpleService extends Transactor {
   @Produces(Array("text/html"))
   def count = (self !! Tick).getOrElse(<h1>Error in counter</h1>)
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case Tick => if (hasStartedTicking) {
       val counter = storage.get(KEY).get.asInstanceOf[Integer].intValue
       storage.put(KEY, new Integer(counter + 1))
@@ -60,7 +60,7 @@ class PersistentSimpleService extends Transactor {
   @Produces(Array("text/html"))
   def count = (self !! Tick).getOrElse(<h1>Error in counter</h1>)
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case Tick => if (hasStartedTicking) {
       val bytes = storage.get(KEY.getBytes).get
       val counter = ByteBuffer.wrap(bytes).getInt

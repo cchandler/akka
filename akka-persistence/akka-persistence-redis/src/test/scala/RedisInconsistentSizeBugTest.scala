@@ -42,7 +42,7 @@ object SampleStorage {
     val dtb = Calendar.getInstance.getTime
     val n = Name(100, "debasish ghosh", "kolkata", dtb, Some(dtb))
 
-    def receive = {
+    def receive(implicit self: Self) = {
       case SETFOO(str) =>
         atomic {
           eventMap += (str.getBytes, toByteArray[Name](n))

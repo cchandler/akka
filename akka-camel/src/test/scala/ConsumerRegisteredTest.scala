@@ -11,16 +11,16 @@ object ConsumerRegisteredTest {
   @consume("mock:test1")
   class ConsumeAnnotatedActor extends Actor {
     self.id = "test"
-    protected def receive = null
+    protected def receive(implicit self: Self) = null
   }
 
   class ConsumerActor extends Actor with Consumer {
     def endpointUri = "mock:test2"
-    protected def receive = null
+    protected def receive(implicit self: Self) = null
   }
 
   class PlainActor extends Actor {
-    protected def receive = null
+    protected def receive(implicit self: Self) = null
   }
 }
 

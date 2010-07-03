@@ -136,7 +136,7 @@ class SerializableTypeClassActorSpec extends
 class MyActorWithDualCounter extends Actor {
   var count1 = 0
   var count2 = 0
-  def receive = {
+  def receive(implicit self: Self) = {
     case "hello" =>
       count1 = count1 + 1
       count2 = count2 + 1
@@ -147,7 +147,7 @@ class MyActorWithDualCounter extends Actor {
 class MyActor extends Actor {
   var count = 0
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case "hello" =>
       count = count + 1
       self.reply("world " + count)
@@ -155,14 +155,14 @@ class MyActor extends Actor {
 }
 
 class MyStatelessActor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case "hello" =>
       self.reply("world")
   }
 }
 
 class MyStatelessActorWithMessagesInMailbox extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case "hello" =>
       println("# messages in mailbox " + self.mailbox.size)
       Thread.sleep(500)
@@ -173,7 +173,7 @@ class MyStatelessActorWithMessagesInMailbox extends Actor {
 @serializable class MyJavaSerializableActor extends Actor {
   var count = 0
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case "hello" =>
       count = count + 1
       self.reply("world " + count)

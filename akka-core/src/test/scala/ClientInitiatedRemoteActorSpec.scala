@@ -16,16 +16,15 @@ object RemoteActorSpecActorUnidirectional {
   val latch = new CountDownLatch(1)
 }
 class RemoteActorSpecActorUnidirectional extends Actor {
-  self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
-
-  def receive = {
+  def receive(implicit self: Self) = {
+    case Init => self.dispatcher = Dispatchers.newThreadBasedDispatcher(self)
     case "OneWay" =>
       RemoteActorSpecActorUnidirectional.latch.countDown
   }
 }
 
 class RemoteActorSpecActorBidirectional extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Hello" =>
       self.reply("World")
     case "Failure" =>
@@ -34,7 +33,7 @@ class RemoteActorSpecActorBidirectional extends Actor {
 }
 
 class SendOneWayAndReplyReceiverActor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Hello" =>
       self.reply("World")
   }
@@ -50,7 +49,8 @@ class SendOneWayAndReplySenderActor extends Actor {
 
   def sendOff = sendTo ! "Hello"
 
-  def receive = {
+  def receive(implicit self: Self) = {
+    case _:LifeCycleMessage =>
     case msg: AnyRef =>
       state = Some(msg)
       SendOneWayAndReplySenderActor.latch.countDown

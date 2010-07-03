@@ -24,12 +24,15 @@ object SupervisorSpec {
   }
 
   class PingPong1Actor extends Actor {
-    import self._
+
     //dispatcher = Dispatchers.newThreadBasedDispatcher(self)
-    def receive = {
+    def receive(implicit self: Self) = {
+      case PostRestart(cause) =>
+        println("******************** restart 1")
+        messageLog.put(cause.getMessage)
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
 
       case OneWay =>
         oneWayLog.put("oneway")
@@ -38,68 +41,61 @@ object SupervisorSpec {
         println("******************** GOT DIE 1")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
     }
-    override def postRestart(reason: Throwable) {
-      println("******************** restart 1")
-      messageLog.put(reason.getMessage)
-    }
+
   }
 
   class PingPong2Actor extends Actor {
-    import self._
-    def receive = {
+
+    def receive(implicit self: Self) = {
+      case PostRestart(cause) =>
+        println("******************** restart 2")
+        messageLog.put(cause.getMessage)
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
       case Die =>
         println("******************** GOT DIE 2")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
     }
-    override def postRestart(reason: Throwable) {
-      println("******************** restart 2")
-      messageLog.put(reason.getMessage)
-    }
   }
 
   class PingPong3Actor extends Actor {
-    import self._
-    def receive = {
+
+    def receive(implicit self: Self) = {
+      case PostRestart(cause) =>
+        println("******************** restart 3")
+        messageLog.put(cause.getMessage)
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
       case Die =>
         println("******************** GOT DIE 3")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
-    }
-
-    override def postRestart(reason: Throwable) {
-      println("******************** restart 3")
-      messageLog.put(reason.getMessage)
     }
   }
 
   class TemporaryActor extends Actor {
-    import self._
-    lifeCycle = Some(LifeCycle(Temporary))
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.lifeCycle = Some(LifeCycle(Temporary))
+      case PostRestart(cause) =>
+        println("******************** restart temporary")
+        messageLog.put(cause.getMessage)
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
       case Die =>
         println("******************** GOT DIE 3")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
     }
-
-    override def postRestart(reason: Throwable) {
-      println("******************** restart temporary")
-      messageLog.put(reason.getMessage)
-    }
   }
 
   class Master extends Actor {
-    self.trapExit = classOf[Exception] :: Nil
-    self.faultHandler = Some(OneForOneStrategy(5, 1000))
-    val temp = self.spawnLink[TemporaryActor]
-    override def receive = {
+    var temp : ActorRef = _
+    override def receive(implicit self: Self) = {
+      case Init =>
+        self.trapExit = classOf[Exception] :: Nil
+        self.faultHandler = Some(OneForOneStrategy(5, 1000))
+        temp = self.spawnLink[TemporaryActor]
       case Die => temp !! (Die, 5000)
     }
   }

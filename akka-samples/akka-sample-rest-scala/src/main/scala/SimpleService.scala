@@ -65,7 +65,7 @@ class SimpleServiceActor extends Transactor {
   private var hasStartedTicking = false
   private lazy val storage = TransactionalMap[String, Integer]()
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Tick" => if (hasStartedTicking) {
       val counter = storage.get(KEY).get.asInstanceOf[Integer].intValue
       storage.put(KEY, new Integer(counter + 1))
@@ -120,7 +120,7 @@ class PersistentSimpleServiceActor extends Transactor {
   private var hasStartedTicking = false
   private lazy val storage = CassandraStorage.newMap
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Tick" => if (hasStartedTicking) {
       val bytes = storage.get(KEY.getBytes).get
       val counter = Integer.parseInt(new String(bytes, "UTF8"))
@@ -168,7 +168,7 @@ object ChatActor {
 
 class ChatActor extends Actor with Logging {
   import ChatActor.ChatMsg
-  def receive = {
+  def receive(implicit self: Self) = {
     case ChatMsg(who, what, msg) => {
       what match {
         case "login" => self.reply("System Message__" + who + " has joined.")

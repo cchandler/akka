@@ -18,7 +18,7 @@ abstract private[amqp] class FaultTolerantChannelActor(channelParameters: Channe
   protected[amqp] var channel: Option[Channel] = None
   log.info("%s is started", toString)
 
-  override def receive = channelMessageHandler orElse specificMessageHandler
+  override def receive(implicit self: Self) = channelMessageHandler orElse specificMessageHandler
 
   // to be defined in subclassing actor
   def specificMessageHandler: PartialFunction[Any, Unit]

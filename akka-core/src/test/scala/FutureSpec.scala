@@ -7,7 +7,7 @@ import Actor._
 
 object FutureSpec {
   class TestActor extends Actor {
-    def receive = {
+    def receive(implicit self: Self) = {
       case "Hello" =>
         self.reply("World")
       case "NoReply" => {}

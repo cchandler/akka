@@ -8,8 +8,8 @@ import Actor._
 
 object ExecutorBasedEventDrivenDispatcherActorSpec {
   class TestActor extends Actor {
-    self.dispatcher = Dispatchers.newExecutorBasedEventDrivenDispatcher(self.uuid)
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.dispatcher = Dispatchers.newExecutorBasedEventDrivenDispatcher(self.uuid)
       case "Hello" =>
         self.reply("World")
       case "Failure" =>
@@ -21,8 +21,8 @@ object ExecutorBasedEventDrivenDispatcherActorSpec {
     val oneWay = new CountDownLatch(1)
   }
   class OneWayTestActor extends Actor {
-    self.dispatcher = Dispatchers.newExecutorBasedEventDrivenDispatcher(self.uuid)
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.dispatcher = Dispatchers.newExecutorBasedEventDrivenDispatcher(self.uuid)
       case "OneWay" => OneWayTestActor.oneWay.countDown
     }
   }

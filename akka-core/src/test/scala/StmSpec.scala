@@ -1,7 +1,6 @@
 package se.scalablesolutions.akka.stm
 
-import se.scalablesolutions.akka.actor.{Actor, Transactor}
-import Actor._
+import se.scalablesolutions.akka.actor.Actor._
 
 import org.scalatest.Spec
 import org.scalatest.Assertions
@@ -9,6 +8,7 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
+import se.scalablesolutions.akka.actor.{Init, Actor, Transactor}
 
 @RunWith(classOf[JUnitRunner])
 class StmSpec extends
@@ -135,7 +135,7 @@ class GlobalTransactionVectorTestActor extends Actor {
 
   private val vector: TransactionalVector[Int] = atomic { TransactionalVector(1) }
 
-  def receive = {
+  def receive(implicit self: Self) = {
     case Add(value) =>
       atomic { vector + value}
       self.reply(Success)
@@ -149,9 +149,9 @@ class GlobalTransactionVectorTestActor extends Actor {
 class NestedTransactorLevelOneActor extends Actor {
   import GlobalTransactionVectorTestActor._
   private val nested = actorOf[NestedTransactorLevelTwoActor].start
-  self.timeout = 10000
 
-  def receive = {
+  def receive(implicit self: Self) = {
+    case Init => self.timeout = 10000
     case add @ Add(_) =>
       self.reply((nested !! add).get)
 
@@ -166,9 +166,9 @@ class NestedTransactorLevelOneActor extends Actor {
 class NestedTransactorLevelTwoActor extends Transactor {
   import GlobalTransactionVectorTestActor._
   private val ref = Ref(0)
-  self.timeout = 10000
 
-  def receive = {
+  def receive(implicit self: Self) = {
+    case Init => self.timeout = 10000
     case Add(value) =>
       ref.swap(value)
       self.reply(Success)

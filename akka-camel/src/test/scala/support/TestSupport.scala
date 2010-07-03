@@ -12,7 +12,7 @@ object TestSupport {
 }
 
 trait TestActor extends Actor {
-  def receive = {
+  def receive(implicit self: Self) = {
     case msg => {
       handler(msg)
     }

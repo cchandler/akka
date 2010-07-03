@@ -14,9 +14,8 @@ import Actor._
  */
 class ExecutorBasedEventDrivenDispatcherActorsSpec extends JUnitSuite with MustMatchers {
   class SlowActor(finishedCounter: CountDownLatch) extends Actor {
-    self.id = "SlowActor"
-
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.id = "SlowActor"
       case x: Int => {
         Thread.sleep(50) // slow actor
         finishedCounter.countDown
@@ -25,9 +24,8 @@ class ExecutorBasedEventDrivenDispatcherActorsSpec extends JUnitSuite with MustM
   }
 
   class FastActor(finishedCounter: CountDownLatch) extends Actor {
-    self.id = "FastActor"
-
-    def receive = {
+    def receive(implicit self: Self) = {
+      case Init => self.id = "FastActor"
       case x: Int => {
         finishedCounter.countDown
       }

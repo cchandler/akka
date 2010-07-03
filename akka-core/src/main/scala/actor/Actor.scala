@@ -135,9 +135,9 @@ object Actor extends Logging {
    */
   def actor(body: Receive): ActorRef =
     actorOf(new Actor() {
-      def receive(implicit self: Self): Receive = {
+      def receive(implicit self: Self): Receive = body orElse {
         case Init => self.lifeCycle = Some(LifeCycle(Permanent))
-      } orElse body
+      }
     }).start
 
   /**
@@ -158,9 +158,9 @@ object Actor extends Logging {
    */
   def transactor(body: Receive): ActorRef =
     actorOf(new Transactor() {
-      def receive(implicit self: Self): Receive = {
+      def receive(implicit self: Self): Receive = body orElse {
         case Init => self.lifeCycle = Some(LifeCycle(Permanent))
-      } orElse body
+      }
     }).start
 
   /**
@@ -179,9 +179,9 @@ object Actor extends Logging {
    */
   def temporaryActor(body: Receive): ActorRef =
     actorOf(new Actor() {
-      def receive(implicit self: Self): Receive = {
+      def receive(implicit self: Self): Receive = body orElse {
         case Init => self.lifeCycle = Some(LifeCycle(Temporary))
-      } orElse body
+      }
     }).start
 
   /**
@@ -206,9 +206,9 @@ object Actor extends Logging {
       def receive(handler: Receive) =
         actorOf(new Actor() {
           body
-          def receive(implicit self: Self) = {
+          def receive(implicit self: Self) = handler orElse {
             case Init => self.lifeCycle = Some(LifeCycle(Permanent))
-          } orElse handler
+          }
         }).start
     }
     handler(body)
@@ -288,7 +288,7 @@ object Actor extends Logging {
  * drop the 'self' prefix:
  * <pre>
  * class MyActor extends Actor  {
- *   import self._
+ *
  *   id = ...
  *   dispatcher = ...
  *   spawnLink[OtherActor]
@@ -317,7 +317,7 @@ trait Actor extends Logging {
    * <p/>
    * Example code:
    * <pre>
-   *   def receive =  {
+   *   def receive(implicit self: Self) =  {
    *     case Ping =&gt;
    *       log.info("got a 'Ping' message")
    *       self.reply("pong")
@@ -354,6 +354,8 @@ trait Actor extends Logging {
     case Kill => throw new ActorKilledException("Actor [" + toString + "] was killed by a Kill message")
   }
 
+  protected[akka] def isDefinedAt(msg : Any)(implicit self: Self) = base(self).isDefinedAt(msg)
+
   @volatile protected[akka] var timeoutActor: Option[ActorRef] = None
 
   private[akka] def cancelReceiveTimeout = {
@@ -364,7 +366,7 @@ trait Actor extends Logging {
     }
   }
 
-  private[akka] def checkReceiveTimeout(implicit self : Self) = {
+  protected[akka] def checkReceiveTimeout(implicit self : Self) = {
     if((self.flatMap(_.hotswap) orElse Option(receive)).map(_.isDefinedAt(ReceiveTimeout)).getOrElse(false)) {
       log.debug("Scheduling timeout for Actor [" + toString + "]")
       timeoutActor = Some(Scheduler.scheduleOnce(self, ReceiveTimeout, self.receiveTimeout, TimeUnit.MILLISECONDS))

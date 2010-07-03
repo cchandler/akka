@@ -28,12 +28,12 @@ case class Credit(accountNo: String, amount: BigInt)
 case object LogSize
 
 class AccountActor extends Transactor {
-  import self._
+
   private lazy val accountState = RedisStorage.newMap
   private lazy val txnLog = RedisStorage.newVector
   //timeout = 5000
 
-  def receive = {
+  def receive(implicit self: Self) = {
     // check balance
     case Balance(accountNo) =>
       txnLog.add("Balance:%s".format(accountNo).getBytes)
@@ -90,7 +90,7 @@ class AccountActor extends Transactor {
 
 @serializable class PersistentFailerActor extends Transactor {
   // timeout = 5000
-  def receive = {
+  def receive(implicit self: Self) = {
     case "Failure" =>
       throw new RuntimeException("Expected exception; to test fault-tolerance")
   }

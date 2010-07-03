@@ -732,13 +732,17 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
       else self.reply(joinPoint.proceed)
 
     // Jan Kronquist: started work on issue 121
+    case Init => __init(self)
+    case InitTransactionalState => __initTransactionalState
+    case PreRestart(cause) => __preRestart
+    case PostRestart(cause) => __postRestart
     case Link(target)   => self.link(target)
     case Unlink(target) => self.unlink(target)
     case unexpected =>
       throw new IllegalActorStateException("Unexpected message [" + unexpected + "] sent to [" + this + "]")
   }
 
-  override def preRestart(reason: Throwable)(implicit self : Self) {
+  private[akka] def __preRestart {
     try {
            // Since preRestart is called we know that this dispatcher
            // is about to be restarted. Put the instance in a thread
@@ -750,7 +754,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
     } catch { case e: InvocationTargetException => throw e.getCause }
   }
 
-  override def postRestart(reason: Throwable)(implicit self : Self) {
+  private[akka] def __postRestart {
     try {
 
       if (postRestart.isDefined) {
@@ -759,7 +763,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
     } catch { case e: InvocationTargetException => throw e.getCause }
   }
 
-  override def init(implicit self : Self) = {
+  private[akka] def __init(self : Self) = {
 	// Get the crashed dispatcher from thread local and intitialize this actor with the
 	 // contents of the old dispatcher
 	  val oldActor = crashedActorTl.get();
@@ -769,7 +773,7 @@ private[akka] class Dispatcher(transactionalRequired: Boolean, var callbacks: Op
 	  }
   }
 
-  override def initTransactionalState = {
+  private[akka] def __initTransactionalState = {
  try {
       if (initTxState.isDefined && target.isDefined) initTxState.get.invoke(target.get, ZERO_ITEM_OBJECT_ARRAY: _*)
     } catch { case e: InvocationTargetException => throw e.getCause }
