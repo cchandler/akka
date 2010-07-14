@@ -179,11 +179,11 @@ sealed class Supervisor private[akka] (
 final class SupervisorActor private[akka] (
   handler: FaultHandlingStrategy,
   trapExceptions: List[Class[_ <: Throwable]]) extends Actor {
-  import self._
-  trapExit = trapExceptions
-  faultHandler = Some(handler)
 
-  override def shutdown(): Unit = shutdownLinkedActors
+  self.trapExit = trapExceptions
+  self.faultHandler = Some(handler)
+
+  override def shutdown(): Unit = self.shutdownLinkedActors
 
   def receive = {
     case unknown => throw new SupervisorException(

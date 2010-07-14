@@ -202,8 +202,13 @@ trait ActorRef extends TransactionManagement {
    */
   protected[akka] var _currentMessage: Option[MessageInvocation] = None
 
-  protected[akka] def currentMessage_=(msg: Option[MessageInvocation]) = guard.withGuard { _currentMessage = msg }
-  protected[akka] def currentMessage = guard.withGuard { _currentMessage }
+  protected[akka] def currentMessage_=(msg: Option[MessageInvocation]) = guard.withGuard {
+    _currentMessage = msg
+  }
+
+  protected[akka] def currentMessage = guard.withGuard { 
+    _currentMessage
+  }
 
   /**
    * Returns the uuid for the actor.
@@ -333,11 +338,11 @@ trait ActorRef extends TransactionManagement {
    * <p/>
    * Works with '!', '!!' and '!!!'.
    */
-  def forward(message: Any)(implicit sender: Some[ActorRef]) = {
+  def forward(message: Any)(implicit sender: ActorRef) = {
     if (isRunning) {
-      if (sender.get.senderFuture.isDefined) postMessageToMailboxAndCreateFutureResultWithTimeout(
-        message, timeout, sender.get.sender, sender.get.senderFuture)
-      else if (sender.get.sender.isDefined) postMessageToMailbox(message, Some(sender.get.sender.get))
+      if (sender.senderFuture.isDefined) postMessageToMailboxAndCreateFutureResultWithTimeout(
+        message, timeout, sender.sender, sender.senderFuture)
+      else if (sender.sender.isDefined) postMessageToMailbox(message, Some(sender.sender.get))
       else throw new IllegalActorStateException("Can't forward message when initial sender is not an actor")
     } else throw new ActorInitializationException("Actor has not been started, you need to invoke 'actor.start' before using it")
   }
@@ -638,9 +643,8 @@ sealed class LocalActorRef private[akka](
       lifeCycle = __lifeCycle
       _supervisor = __supervisor
       hotswap = __hotswap
-      actorSelfFields._1.set(actor, this)
-      actorSelfFields._2.set(actor, Some(this))
-      actorSelfFields._3.set(actor, Some(this))
+    //Needed? Why?
+      actorSelfField.set(actor, Some(this))
       start
       __messages.foreach(message => this ! MessageSerializer.deserialize(message.getMessage))
       ActorRegistry.register(this)
@@ -659,7 +663,7 @@ sealed class LocalActorRef private[akka](
 
   // Needed to be able to null out the 'val self: ActorRef' member variables to make the Actor
   // instance elegible for garbage collection
-  private val actorSelfFields = findActorSelfField(actor.getClass)
+  private val actorSelfField = findActorSelfField(actor.getClass)
 
   if (runActorInitialization && !isDeserialized) initializeActorInstance
 
@@ -930,28 +934,28 @@ sealed class LocalActorRef private[akka](
 
   private[this] def newActor: Actor = {
     isInInitialization = true
-    Actor.actorRefInCreation.value = Some(this)
-    val actor = actorFactory match {
-      case Left(Some(clazz)) =>
-        try {
-          clazz.newInstance
-        } catch {
+    Actor.actorRefInCreation.withValue(Some(this)){
+      val actor = actorFactory match {
+        case Left(Some(clazz)) =>
+          try {
+            clazz.newInstance
+          } catch {
           case e: InstantiationException => throw new ActorInitializationException(
             "Could not instantiate Actor due to:\n" + e +
             "\nMake sure Actor is NOT defined inside a class/trait," +
             "\nif so put it outside the class/trait, f.e. in a companion object," +
             "\nOR try to change: 'actorOf[MyActor]' to 'actorOf(new MyActor)'.")
-        }
-      case Right(Some(factory)) =>
-        factory()
-      case _ =>
-        throw new ActorInitializationException(
-          "Can't create Actor, no Actor class or factory function in scope")
+          }
+        case Right(Some(factory)) => factory()
+        case _ =>
+          throw new ActorInitializationException(
+            "Can't create Actor, no Actor class or factory function in scope")
+      }
+      if (actor eq null) throw new ActorInitializationException(
+        "Actor instance passed to ActorRef can not be 'null'")
+      isInInitialization = false
+      actor
     }
-    if (actor eq null) throw new ActorInitializationException(
-      "Actor instance passed to ActorRef can not be 'null'")
-    isInInitialization = false
-    actor
   }
 
   protected[akka] def postMessageToMailbox(message: Any, senderOption: Option[ActorRef]): Unit = {
@@ -1170,23 +1174,18 @@ sealed class LocalActorRef private[akka](
     linkedActors.values.toArray.toList.asInstanceOf[List[ActorRef]]
 
   private def nullOutActorRefReferencesFor(actor: Actor) = {
-    actorSelfFields._1.set(actor, null)
-    actorSelfFields._2.set(actor, null)
-    actorSelfFields._3.set(actor, null)
+    Actor.log.trace("Nulling out self references for [%s]",toString)
+    actorSelfField.set(actor, null)
   }
 
-  private def findActorSelfField(clazz: Class[_]): Tuple3[Field, Field, Field] = {
-    try {
-      val selfField =       clazz.getDeclaredField("self")
-      val optionSelfField = clazz.getDeclaredField("optionSelf")
-      val someSelfField =   clazz.getDeclaredField("someSelf")
-      selfField.setAccessible(true)
-      optionSelfField.setAccessible(true)
-      someSelfField.setAccessible(true)
-      (selfField, optionSelfField, someSelfField)
-    } catch {
-      case e: NoSuchFieldException =>
-        val parent = clazz.getSuperclass
+    private def findActorSelfField(clazz: Class[_]): Field = {
+       try {
+         val someSelfField =   clazz.getDeclaredField("someSelf")
+         someSelfField.setAccessible(true)
+        someSelfField
+       } catch {
+         case e: NoSuchFieldException =>
+           val parent = clazz.getSuperclass
         if (parent != null) findActorSelfField(parent)
         else throw new IllegalActorStateException(toString + " is not an Actor since it have not mixed in the 'Actor' trait")
     }

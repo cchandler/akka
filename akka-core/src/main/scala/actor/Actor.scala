@@ -266,19 +266,6 @@ object Actor extends Logging {
  * <p/>
  * This means that to use them you have to prefix them with 'self', like this: <tt>self ! Message</tt>
  *
- * However, for convenience you can import these functions and fields like below, which will allow you do
- * drop the 'self' prefix:
- * <pre>
- * class MyActor extends Actor  {
- *   import self._
- *   id = ...
- *   dispatcher = ...
- *   spawnLink[OtherActor]
- *   ...
- * }
- * </pre>
- *
- * <p/>
  * The Actor trait also has a 'log' member field that can be used for logging within the Actor.
  *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
@@ -289,36 +276,23 @@ trait Actor extends Logging {
    */
   type Receive = Actor.Receive
 
-  /*
-  * Option[ActorRef] representation of the 'self' ActorRef reference.
-  * <p/>
-  * Mainly for internal use, functions as the implicit sender references when invoking
-  * one of the message send functions ('!', '!!' and '!!!').
-  */
-  @transient implicit val optionSelf: Option[ActorRef] = {
-    val ref = Actor.actorRefInCreation.value
-    Actor.actorRefInCreation.value = None
-    if (ref.isEmpty) throw new ActorInitializationException(
-      "ActorRef for instance of actor [" + getClass.getName + "] is not in scope." +
-              "\n\tYou can not create an instance of an actor explicitly using 'new MyActor'." +
-              "\n\tYou have to use one of the factory methods in the 'Actor' object to create a new actor." +
-              "\n\tEither use:" +
-              "\n\t\t'val actor = Actor.actorOf[MyActor]', or" +
-              "\n\t\t'val actor = Actor.actorOf(new MyActor(..))', or" +
-              "\n\t\t'val actor = Actor.actor { case msg => .. } }'")
-    else ref
+  @transient implicit val someSelf = {
+    val refOption = Actor.actorRefInCreation.value
+    if (refOption.isEmpty) throw new ActorInitializationException(
+          "ActorRef for instance of actor [" + getClass.getName + "] is not in scope." +
+                  "\n\tYou can not create an instance of an actor explicitly using 'new MyActor'." +
+                  "\n\tYou have to use one of the factory methods in the 'Actor' object to create a new actor." +
+                  "\n\tEither use:" +
+                  "\n\t\t'val actor = Actor.actorOf[MyActor]', or" +
+                  "\n\t\t'val actor = Actor.actorOf(new MyActor(..))', or" +
+                  "\n\t\t'val actor = Actor.actor { case msg => .. } }'")
+    refOption.get.id = getClass.getName //Why is this needed?
+
+    refOption.asInstanceOf[Some[ActorRef]]
   }
 
-  /*
-   * Some[ActorRef] representation of the 'self' ActorRef reference.
-   * <p/>
-   * Mainly for internal use, functions as the implicit sender references when invoking
-   * the 'forward' function.
-   */
-  @transient implicit val someSelf: Some[ActorRef] = optionSelf.asInstanceOf[Some[ActorRef]]
-
   /**
-   * The 'self' field holds the ActorRef for this actor.
+   * The 'self' method returns the ActorRef for this actor.
    * <p/>
    * Can be used to send messages to itself:
    * <pre>
@@ -344,11 +318,15 @@ trait Actor extends Logging {
    * self.stop(..)
    * </pre>
    */
-  @transient val self: ActorRef = {
-    val zelf = optionSelf.get
-    zelf.id = getClass.getName
-    zelf
-  }
+  implicit def self = someSelf.get
+
+  /*
+  * Option[ActorRef] representation of the 'self' ActorRef reference.
+  * <p/>
+  * Mainly for internal use, functions as the implicit sender references when invoking
+  * one of the message send functions ('!', '!!' and '!!!').
+  */
+  implicit def optionSelf: Option[ActorRef] = someSelf
 
   /**
    * User overridable callback/setting.

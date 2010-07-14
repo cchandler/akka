@@ -17,7 +17,7 @@ trait Dispatcher { this: Actor =>
 
   protected def dispatch: Receive = {
     case a if routes.isDefinedAt(a) =>
-      if (isSenderDefined) routes(a).forward(transform(a))(someSelf)
+      if (isSenderDefined) routes(a).forward(transform(a))(self)
       else routes(a).!(transform(a))(None)
   }
 

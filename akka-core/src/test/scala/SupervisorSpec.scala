@@ -24,12 +24,12 @@ object SupervisorSpec {
   }
 
   class PingPong1Actor extends Actor {
-    import self._
+
     //dispatcher = Dispatchers.newThreadBasedDispatcher(self)
     def receive = {
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
 
       case OneWay =>
         oneWayLog.put("oneway")
@@ -45,11 +45,10 @@ object SupervisorSpec {
   }
 
   class PingPong2Actor extends Actor {
-    import self._
     def receive = {
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
       case Die =>
         println("******************** GOT DIE 2")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
@@ -61,11 +60,10 @@ object SupervisorSpec {
   }
 
   class PingPong3Actor extends Actor {
-    import self._
     def receive = {
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
       case Die =>
         println("******************** GOT DIE 3")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
@@ -78,12 +76,11 @@ object SupervisorSpec {
   }
 
   class TemporaryActor extends Actor {
-    import self._
-    lifeCycle = Some(LifeCycle(Temporary))
+    self.lifeCycle = Some(LifeCycle(Temporary))
     def receive = {
       case Ping =>
         messageLog.put("ping")
-        reply("pong")
+        self.reply("pong")
       case Die =>
         println("******************** GOT DIE 3")
         throw new RuntimeException("Expected exception; to test fault-tolerance")
