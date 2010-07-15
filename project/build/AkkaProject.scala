@@ -20,8 +20,9 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
   val ATMO_VERSION = "0.6"
   val CASSANDRA_VERSION = "0.6.1"
   val LIFT_VERSION = "2.0-scala280-SNAPSHOT"
-  val SCALATEST_VERSION = "1.2-for-scala-2.8.0.RC3-SNAPSHOT"
-  val MULTIVERSE_VERSION = "0.6-SNAPSHOT"
+  val SCALATEST_VERSION = "1.2-for-scala-2.8.0.final-SNAPSHOT"
+  //val MULTIVERSE_VERSION = "0.6-SNAPSHOT" // dated snapshot release
+  val MULTIVERSE_VERSION = "0.6-2010-07-15" // dated snapshot release
 
   // ------------------------------------------------------------
   lazy val deployPath = info.projectPath / "deploy"
@@ -68,7 +69,8 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
   val atmosphereModuleConfig  = ModuleConfiguration("org.atmosphere", sonatypeSnapshotRepo)
   val liftModuleConfig        = ModuleConfiguration("net.liftweb", ScalaToolsSnapshots)
   def codehausSnapshotRepo    = "Codehaus Snapshots" at "http://snapshots.repository.codehaus.org"
-  val multiverseModuleConfig  = ModuleConfiguration("org.multiverse", codehausSnapshotRepo)
+  val multiverseModuleConfig  = ModuleConfiguration("org.multiverse", embeddedRepo)
+  //  val multiverseModuleConfig  = ModuleConfiguration("org.multiverse", codehausSnapshotRepo)
 
   // ------------------------------------------------------------
   // project defintions
@@ -81,9 +83,6 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
   lazy val akka_jta = project("akka-jta", "akka-jta", new AkkaJTAProject(_), akka_core)
   lazy val akka_kernel = project("akka-kernel", "akka-kernel", new AkkaKernelProject(_),
     akka_core, akka_http, akka_spring, akka_camel, akka_persistence, akka_amqp)
-
-  // active object tests in java
-  lazy val akka_active_object_test = project("akka-active-object-test", "akka-active-object-test", new AkkaActiveObjectTestProject(_), akka_kernel)
 
   // examples
   lazy val akka_samples = project("akka-samples", "akka-samples", new AkkaSamplesParentProject(_))
@@ -180,10 +179,10 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final" % "compile"
     val commons_codec = "commons-codec" % "commons-codec" % "1.4" % "compile"
     val commons_io = "commons-io" % "commons-io" % "1.4" % "compile"
-    val dispatch_json = "net.databinder" % "dispatch-json_2.8.0.RC3" % "0.7.4" % "compile"
-    val dispatch_http = "net.databinder" % "dispatch-http_2.8.0.RC3" % "0.7.4" % "compile"
-    val sjson = "sjson.json" % "sjson" % "0.6-SNAPSHOT-2.8.RC3" % "compile"
-    val sbinary = "sbinary" % "sbinary" % "2.8.0.RC3-0.3.1-SNAPSHOT" % "compile"
+    val dispatch_json = "net.databinder" % "dispatch-json_2.8.0" % "0.7.4" % "compile"
+    val dispatch_http = "net.databinder" % "dispatch-http_2.8.0" % "0.7.4" % "compile"
+    val sjson = "sjson.json" % "sjson" % "0.7-SNAPSHOT-2.8.0" % "compile"
+    val sbinary = "sbinary" % "sbinary" % "2.8.0-0.3.1" % "compile"
     val jackson = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.2.1" % "compile"
     val jackson_core = "org.codehaus.jackson" % "jackson-core-asl" % "1.2.1" % "compile"
     val h2_lzf = "voldemort.store.compress" % "h2-lzf" % "1.0" % "compile"
@@ -191,7 +190,7 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
     val jta_1_1 = "org.apache.geronimo.specs" % "geronimo-jta_1.1_spec" % "1.1.1" % "compile" intransitive()
     val werkz = "org.codehaus.aspectwerkz" % "aspectwerkz-nodeps-jdk5" % "2.2.1" % "compile"
     val werkz_core = "org.codehaus.aspectwerkz" % "aspectwerkz-jdk5" % "2.2.1" % "compile"
-    val configgy = "net.lag" % "configgy" % "2.8.0.RC3-1.5.2-SNAPSHOT" % "compile"
+    val configgy = "net.lag" % "configgy" % "2.8.0-1.5.5" % "compile"
     val guicey = "org.guiceyfruit" % "guice-all" % "2.0" % "compile"
     val aopalliance = "aopalliance" % "aopalliance" % "1.0" % "compile"
     val protobuf = "com.google.protobuf" % "protobuf-java" % "2.3.0" % "compile"
@@ -205,7 +204,7 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
 
   class AkkaAMQPProject(info: ProjectInfo) extends AkkaDefaultProject(info, distPath) with CodeFellowPlugin {
     val commons_io = "commons-io" % "commons-io" % "1.4" % "compile"
-    val rabbit = "com.rabbitmq" % "amqp-client" % "1.8.0" % "compile"
+    val rabbit = "com.rabbitmq" % "amqp-client" % "1.8.1" % "compile"
 
     // testing
     val multiverse = "org.multiverse" % "multiverse-alpha" % MULTIVERSE_VERSION % "test" intransitive()
@@ -248,7 +247,7 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
   }
 
   class AkkaRedisProject(info: ProjectInfo) extends AkkaDefaultProject(info, distPath) {
-    val redis = "com.redis" % "redisclient" % "2.8.0.RC3-1.4" % "compile"
+    val redis = "com.redis" % "redisclient" % "2.8.0-1.4" % "compile"
     val commons_codec = "commons-codec" % "commons-codec" % "1.4" % "compile"
     override def testOptions = TestFilter((name: String) => name.endsWith("Test")) :: Nil
   }
@@ -304,13 +303,6 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
     val jta_spec = "org.apache.geronimo.specs" % "geronimo-jta_1.1_spec" % "1.1.1" % "compile" intransitive()
   }
 
-  // ================= TEST ==================
-  class AkkaActiveObjectTestProject(info: ProjectInfo) extends AkkaDefaultProject(info, distPath) with CodeFellowPlugin {
-    // testing
-    val junit = "junit" % "junit" % "4.5" % "test"
-    val jmock = "org.jmock" % "jmock" % "2.4.0" % "test"
-  }
-
   // ================= EXAMPLES ==================
   class AkkaSampleAntsProject(info: ProjectInfo) extends DefaultSpdeProject(info) with CodeFellowPlugin {
     val scalaToolsSnapshots = ScalaToolsSnapshots
@@ -339,10 +331,25 @@ class AkkaParent(info: ProjectInfo) extends DefaultProject(info) {
   }
 
   class AkkaSampleCamelProject(info: ProjectInfo) extends AkkaDefaultProject(info, deployPath) with CodeFellowPlugin {
-    val spring_jms = "org.springframework" % "spring-jms" % "3.0.1.RELEASE" % "compile"
-    val camel_jetty = "org.apache.camel" % "camel-jetty" % "2.3.0" % "compile"
-    val camel_jms = "org.apache.camel" % "camel-jms" % "2.3.0" % "compile"
-    val activemq_core = "org.apache.activemq" % "activemq-core" % "5.3.2" % "compile"
+    override def ivyXML =
+      <dependencies>
+        <dependency org="org.springframework" name="spring-jms" rev="3.0.1.RELEASE">
+        </dependency>
+        <dependency org="org.apache.geronimo.specs" name="geronimo-servlet_2.5_spec" rev="1.1.1">
+        </dependency>
+        <dependency org="org.apache.camel" name="camel-jetty" rev="2.3.0">
+          <exclude module="geronimo-servlet_2.4_spec"/>
+        </dependency>
+        <dependency org="org.apache.camel" name="camel-jms" rev="2.3.0">
+        </dependency>
+        <dependency org="org.apache.activemq" name="activemq-core" rev="5.3.2">
+        </dependency>
+      </dependencies>
+
+//    val spring_jms = "org.springframework" % "spring-jms" % "3.0.1.RELEASE" % "compile"
+//    val camel_jetty = "org.apache.camel" % "camel-jetty" % "2.3.0" % "compile"
+//    val camel_jms = "org.apache.camel" % "camel-jms" % "2.3.0" % "compile"
+//    val activemq_core = "org.apache.activemq" % "activemq-core" % "5.3.2" % "compile"
   }
 
   class AkkaSampleSecurityProject(info: ProjectInfo) extends AkkaDefaultProject(info, deployPath) with CodeFellowPlugin {

@@ -46,8 +46,9 @@ case class Exit(dead: ActorRef, killer: Throwable) extends LifeCycleMessage
 case class Link(child: ActorRef) extends LifeCycleMessage
 case class Unlink(child: ActorRef) extends LifeCycleMessage
 case class UnlinkAndStop(child: ActorRef) extends LifeCycleMessage
-case object Kill extends LifeCycleMessage
 case object ReceiveTimeout extends LifeCycleMessage
+case class MaximumNumberOfRestartsWithinTimeRangeReached(
+  victim: ActorRef, maxNrOfRetries: Int, withinTimeRange: Int, lastExceptionCausingRestart: Throwable) extends LifeCycleMessage
 
 // Exceptions for Actors
 class ActorStartException private[akka](message: String) extends RuntimeException(message)
@@ -271,6 +272,7 @@ object Actor extends Logging {
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 trait Actor extends Logging {
+
   /**
    * Type alias because traits cannot have companion objects.
    */
@@ -404,12 +406,11 @@ trait Actor extends Logging {
 
   private val lifeCycles: Receive = {
     case HotSwap(code) => self.hotswap = code; self.checkReceiveTimeout // FIXME : how to reschedule receivetimeout on hotswap?
-    case Restart(reason) => self.restart(reason)
     case Exit(dead, reason) => self.handleTrapExit(dead, reason)
     case Link(child) => self.link(child)
     case Unlink(child) => self.unlink(child)
     case UnlinkAndStop(child) => self.unlink(child); child.stop
-    case Kill => throw new ActorKilledException("Actor [" + toString + "] was killed by a Kill message")
+    case Restart(reason) => throw reason
   }
 }
 
