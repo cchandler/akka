@@ -202,12 +202,12 @@ private[akka] object AsyncCallbackAdapter {
  */
 private[akka] class AsyncCallbackAdapter(exchange: Exchange, callback: AsyncCallback) extends ActorRef {
 
-  def start = {
+  override def start = {
     _isRunning = true
     this
   }
 
-  def stop() = {
+  override def stop() = {
     _isRunning = false
     _isShutDown = true
   }
@@ -227,28 +227,6 @@ private[akka] class AsyncCallbackAdapter(exchange: Exchange, callback: AsyncCall
     callback.done(false)
   }
 
-  def actorClass: Class[_ <: Actor] = unsupported
-  def actorClassName = unsupported
-  def dispatcher_=(md: MessageDispatcher): Unit = unsupported
-  def dispatcher: MessageDispatcher = unsupported
-  def transactionConfig_=(config: TransactionConfig): Unit = unsupported
-  def transactionConfig: TransactionConfig = unsupported
-  def makeTransactionRequired: Unit = unsupported
-  def makeRemote(hostname: String, port: Int): Unit = unsupported
-  def makeRemote(address: InetSocketAddress): Unit = unsupported
-  def homeAddress_=(address: InetSocketAddress): Unit = unsupported
-  def remoteAddress: Option[InetSocketAddress] = unsupported
-  def link(actorRef: ActorRef): Unit = unsupported
-  def unlink(actorRef: ActorRef): Unit = unsupported
-  def startLink(actorRef: ActorRef): Unit = unsupported
-  def startLinkRemote(actorRef: ActorRef, hostname: String, port: Int): Unit = unsupported
-  def spawn[T <: Actor : Manifest]: ActorRef = unsupported
-  def spawnRemote[T <: Actor: Manifest](hostname: String, port: Int): ActorRef = unsupported
-  def spawnLink[T <: Actor: Manifest]: ActorRef = unsupported
-  def spawnLinkRemote[T <: Actor : Manifest](hostname: String, port: Int): ActorRef = unsupported
-  def shutdownLinkedActors: Unit = unsupported
-  def mailboxSize: Int = unsupported
-  def supervisor: Option[ActorRef] = unsupported
   protected[akka] def postMessageToMailboxAndCreateFutureResultWithTimeout[T](message: Any, timeout: Long, senderOption: Option[ActorRef], senderFuture: Option[CompletableFuture[T]]) = unsupported
   protected[akka] def mailbox: Deque[MessageInvocation] = unsupported
   protected[akka] def restart(reason: Throwable, maxNrOfRetries: Int, withinTimeRange: Int): Unit = unsupported
@@ -261,6 +239,4 @@ private[akka] class AsyncCallbackAdapter(exchange: Exchange, callback: AsyncCall
   protected[akka] def registerSupervisorAsRemoteActor = unsupported
   protected[akka] def supervisor_=(sup: Option[ActorRef]): Unit = unsupported
   protected[this] def actorInstance: AtomicReference[Actor] = unsupported
-
-  private def unsupported = throw new UnsupportedOperationException("Not supported for %s" format classOf[AsyncCallbackAdapter].getName)
 }
