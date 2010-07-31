@@ -64,6 +64,9 @@ trait CassandraSession extends Closeable with Flushable {
 
   def /(key: String, columnParent: ColumnParent, slicePredicate: SlicePredicate, consistencyLevel: ConsistencyLevel): List[ColumnOrSuperColumn] =
     client.get_slice(keyspace, key, columnParent, slicePredicate, consistencyLevel).toList
+    
+  def %(columnParent: ColumnParent, slicePredicate:SlicePredicate, keyRange:KeyRange, consistencyLevel: ConsistencyLevel): List[KeySlice] =
+    client.get_range_slices(keyspace, columnParent, slicePredicate, keyRange, consistencyLevel).toList
 
   def |(key: String, colPath: ColumnPath): Option[ColumnOrSuperColumn] =
     |(key, colPath, consistencyLevel)
@@ -115,7 +118,8 @@ trait CassandraSession extends Closeable with Flushable {
   def getSlice(key: String, columnParent: ColumnParent, slicePredicate: SlicePredicate) = / (key, columnParent, slicePredicate)
 
   def getSlice(key: String, columnParent: ColumnParent, slicePredicate: SlicePredicate, consistencyLevel: ConsistencyLevel) = / (key, columnParent, slicePredicate, consistencyLevel)
-
+  
+  def getRangeSlices(columnParent: ColumnParent, slicePredicate:SlicePredicate, keyRange:KeyRange, consistencyLevel: ConsistencyLevel): List[KeySlice] = % (columnParent, slicePredicate, keyRange, consistencyLevel)
 
   def get(key: String, colPath: ColumnPath) = |(key, colPath)
 
